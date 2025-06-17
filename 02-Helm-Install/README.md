@@ -69,6 +69,8 @@ kubectl get pods
 kubectl get svc
 Observation: Review the EXTERNAL-IP field and you will see it as localhost. Access the nginx page from local desktop localhost
 
+kubectl port-forward service/mynginx 8088:80
+
 # Access Nginx Application on local desktop browser
 http://localhost:80
 http://127.0.0.1:80
