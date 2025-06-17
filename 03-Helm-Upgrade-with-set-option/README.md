@@ -211,5 +211,3 @@ chmod +x helm-upgrade.sh
 | Cleanup  | `helm uninstall`               | Remove release                     |
 
 ---
-
-Let me know if you'd like the same guide exported as a `.md` file or need the bash script extended with rollback or error handling features.

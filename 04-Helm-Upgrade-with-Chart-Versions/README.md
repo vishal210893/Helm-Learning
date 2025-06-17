@@ -1,138 +1,173 @@
-# Helm Upgrade with Chart Versions
+# 🚀 Helm Upgrade Using Specific Chart Versions
 
-## Step-01: Introduction
-- We are going to learn some additional flags for `helm search repo` command
-- We are going to Install and Upgrade Helm Releases using Chart Versions
-- In addition, we are going to learn about Helm Rollback 
-- helm install
-- helm search repo
-- helm status
-- helm upgrade
-- helm rollback
-- helm history
+> Learn how to install, upgrade, and roll back Helm releases using specific **chart versions**, along with exploring Helm history and release status.
 
-## Step-02: Search Helm Repo for mychart2
-- [Review mychart2 in Github Repo](https://github.com/stacksimplify/helm-charts/tree/main)
-- mychart2 has 4 chart versions (0.1.0, 0.2.0, 0.3.0, 0.4.0)
-- mychart2 Chart Versions -> App Version
-- 0.1.0 -> 1.0.0
-- 0.2.0 -> 2.0.0
-- 0.3.0 -> 3.0.0
-- 0.4.0 -> 4.0.0
-- [Review Artifacthub.io](https://artifacthub.io/packages/helm/stacksimplify/mychart2/)
-```t
-# Search Helm Repo
+---
+
+## 📘 Step 01: Introduction
+
+This guide covers:
+
+* Installing specific versions of a Helm chart
+* Upgrading to a newer chart version
+* Viewing release history and status
+* Performing rollbacks to earlier versions
+
+### 🔧 Helm Commands Used:
+
+* `helm install`
+* `helm search repo`
+* `helm status`
+* `helm upgrade`
+* `helm rollback`
+* `helm history`
+
+---
+
+## 📦 Step 02: Search for Chart Versions (`mychart2`)
+
+🔗 References:
+
+* 📂 [GitHub – stacksimplify/mychart2](https://github.com/stacksimplify/helm-charts/tree/main/mychart2)
+* 📦 [ArtifactHub – mychart2](https://artifacthub.io/packages/helm/stacksimplify/mychart2/)
+
+`mychart2` Chart Version → App Version Mapping:
+
+| Chart Version | App Version |
+| ------------- | ----------- |
+| 0.1.0         | 1.0.0       |
+| 0.2.0         | 2.0.0       |
+| 0.3.0         | 3.0.0       |
+| 0.4.0         | 4.0.0       |
+
+```bash
+# 🔍 View the latest available version
 helm search repo mychart2
-Observation: Should display latest version of mychart2 from stacksimplify helm repo
 
-# Search Helm Repo with --versions
+# 🔍 View all available versions of the chart
 helm search repo mychart2 --versions
-Observation: Should display all versions of mychart2
 
-# Search Helm Repo with --version
-helm search repo mychart2 --version "CHART-VERSIONS"
+# 🔍 Filter for a specific chart version
 helm search repo mychart2 --version "0.2.0"
-Observation: Should display specified version of helm chart 
 ```
 
-## Step-03: Install Helm Chart by specifying Chart Version
-```t
-# Install Helm Chart by specifying Chart Version
-helm install myapp101 stacksimplify/mychart2 --version "CHART-VERSION"
+> 💡 **Observation**: These commands help verify the available versions before installation or upgrade.
+
+---
+
+## 🚀 Step 03: Install a Specific Chart Version
+
+```bash
+# 📥 Install a specific version of the chart
 helm install myapp101 stacksimplify/mychart2 --version "0.1.0"
 
-# List Helm Release
-helm list 
+# 📋 View installed Helm releases
+helm list
 
-# List Kubernetes Resources Deployed as part of this Helm Release
+# 🔎 Inspect deployed resources
 helm status myapp101 --show-resources
-
-# Access Application
-http://localhost:31232
-
-# View Pod logs
-kubectl get pods
-kubectl logs -f POD-NAME
 ```
 
-## Step-04: Helm Upgrade using Chart Version
-```t
-# Helm Upgrade using Chart Version
+🔗 **Access the Application:**
+
+```
+http://localhost:31232
+```
+
+```bash
+# 🔧 View logs of the deployed pod
+kubectl get pods
+kubectl logs -f <POD-NAME>
+```
+
+---
+
+## 🔁 Step 04: Upgrade Helm Release with a Specific Chart Version
+
+```bash
+# ⬆️ Upgrade to a newer chart version
 helm upgrade myapp101 stacksimplify/mychart2 --version "0.2.0"
 
-# List Helm Release
-helm list 
-
-# List Kubernetes Resources Deployed as part of this Helm Release
+# 🔍 Check upgrade result
+helm list
 helm status myapp101 --show-resources
-
-# Access Application
-http://localhost:31232
-
-# List Release History
 helm history myapp101
 ```
 
-## Step-05: Helm Upgrade without Chart Version
-```t
-# Helm Upgrade using Chart Version
+🔗 **Verify Updated App:**
+
+```
+http://localhost:31232
+```
+
+> ✅ **Expectation**: App Version should now reflect `2.0.0`
+
+---
+
+## ⏫ Step 05: Upgrade to Latest Chart Version (Without `--version`)
+
+```bash
+# ⬆️ Upgrade to latest available chart version
 helm upgrade myapp101 stacksimplify/mychart2
 
-# List Helm Release
-helm list 
-
-# List Kubernetes Resources Deployed as part of this Helm Release
+# 🔍 View release details and history
 helm status myapp101 --show-resources
-
-# Access Application
-http://localhost:31232
-Observation: Should take the latest release which is Appversion 4.0.0, Chart Version 0.4.0 (Which is default or latest Chart version)
-
-# List Release History
 helm history myapp101
 ```
 
-## Step-06: Helm Rollback
-- Roll back a release to a previous revision or a specific revision
-```t
-# Rollback to previous version
-helm rollback RELEASE-NAME 
+> ⚠️ **Observation**: Upgrades to **latest chart version** → Chart `0.4.0`, App `4.0.0`.
+
+🔗 **Test the Application:**
+
+```
+http://localhost:31232
+```
+
+---
+
+## 🔙 Step 06: Roll Back to Previous Revision
+
+Rolls back to the release's immediate previous version.
+
+```bash
+# ⏪ Roll back to previous version
 helm rollback myapp101
 
-# List Helm Release
-helm list 
-
-# List Kubernetes Resources Deployed as part of this Helm Release
+# 🔍 Review state
 helm status myapp101 --show-resources
-
-# Access Application
-http://localhost:31232
-Observation: Should see V2 version of Application (Chart Version 0.2.0, AppVersion 2.0.0)
-
-# List Release History
 helm history myapp101
 ```
 
-## Step-07: Helm Rollback to specific Revision
-- Roll back a release to a previous revision or a specific revision
-```t
-# Rollback to previous version
-helm rollback RELEASE-NAME REVISION
+> ✅ **Expectation**: Application reverts to **Chart Version 0.2.0**, App Version `2.0.0`
+
+---
+
+## 🎯 Step 07: Roll Back to Specific Revision
+
+```bash
+# ⏮️ Rollback to revision 1 (initial install)
 helm rollback myapp101 1
 
-# List Helm Release
-helm list 
-
-# List Kubernetes Resources Deployed as part of this Helm Release
+# 🔍 Review release info
+helm list
 helm status myapp101 --show-resources
-
-# Access Application
-http://localhost:31232
-Observation: Should see V1 version of Application (Chart Version 0.1.0, AppVersion 1.0.0)
-
-# List Release History
 helm history myapp101
 ```
 
+> ✅ **Expectation**: Application should now show **Chart Version 0.1.0**, App Version `1.0.0`
 
+---
 
+## ✅ Summary
+
+| Step                | Command Example                             | Description                      |
+| ------------------- | ------------------------------------------- | -------------------------------- |
+| Search              | `helm search repo mychart2 --versions`      | View available chart versions    |
+| Install             | `helm install myapp101 ... --version 0.1.0` | Install specific chart version   |
+| Upgrade             | `helm upgrade myapp101 ... --version 0.2.0` | Upgrade to a specific version    |
+| Upgrade (Latest)    | `helm upgrade myapp101 ...`                 | Upgrade to the latest version    |
+| History             | `helm history myapp101`                     | View revision history            |
+| Rollback            | `helm rollback myapp101`                    | Rollback to previous version     |
+| Rollback (Specific) | `helm rollback myapp101 1`                  | Rollback to a specified revision |
+
+---

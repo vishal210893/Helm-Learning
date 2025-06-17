@@ -143,5 +143,3 @@ helm uninstall mynginx
 | Remove   | `helm uninstall`       | Uninstall a Helm release        |
 
 ---
-
-Let me know if you'd like a bash script version of this flow, or a downloadable `.md` version of the documentation.
