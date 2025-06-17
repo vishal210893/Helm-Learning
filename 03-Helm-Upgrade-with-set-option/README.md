@@ -1,144 +1,215 @@
-# Helm Upgrade with set option
+# 🚀 Helm Upgrade with `--set` Option
 
-## Step-01: Introduction
-- We are going to upgrade the HELM RELEASE using `helm upgrade` command in combination with `--set "image.tag=<DOCKER-IMAGE-TAGS>`
-- We will use the following Helm Commands in this demo.
-- helm repo 
-- helm search repo
-- helm install
-- helm upgrade
-- helm history
-- helm status
+> Upgrade Helm releases dynamically using the `--set` flag to override values like Docker image tags.
 
-## Step-02: Custom Helm Repo
-### Step-02-01: Review our Custom Helm Repo
-- [StackSimplify Helm Repo hosted on GitHub](https://stacksimplify.github.io/helm-charts/)
-- [GitHub Repository for StackSimplify Helm Repo](https://github.com/stacksimplify/helm-charts)
-- [artifacthub.io](https://artifacthub.io): Search for `stacksimplify`
-- [mychart1 from artifacthub.io](https://artifacthub.io/packages/helm/stacksimplify/mychart1)
+---
 
+## 📘 Introduction
 
-### Step-02-02: Add Custom Helm Repo
-```t
-# List Helm Repositories
+This guide demonstrates how to:
+
+* Install and upgrade a Helm release
+* Use `--set "image.tag=<DOCKER-IMAGE-TAG>"` to upgrade images
+* Explore useful Helm commands
+
+💡 Helm Commands covered:
+
+* `helm repo`
+* `helm search repo`
+* `helm install`
+* `helm upgrade`
+* `helm history`
+* `helm status`
+
+---
+
+## 📦 Custom Helm Repository
+
+### 🔍 Review Our Custom Helm Repo
+
+* 📦 [StackSimplify Helm Repo](https://stacksimplify.github.io/helm-charts/)
+* 💻 [GitHub - stacksimplify/helm-charts](https://github.com/stacksimplify/helm-charts)
+* 🔎 Search on [artifacthub.io](https://artifacthub.io) → `stacksimplify`
+* 📜 [mychart1 - ArtifactHub](https://artifacthub.io/packages/helm/stacksimplify/mychart1)
+
+---
+
+### ➕ Add the Custom Helm Repo
+
+```bash
+# List existing Helm repositories
 helm repo list
 
-# Add Helm Repository
-helm repo add <DESIRED-NAME> <HELM-REPO-URL>
+# Add the custom repository
 helm repo add stacksimplify https://stacksimplify.github.io/helm-charts/
 
-# List Helm Repositories
-helm repo list
+# Refresh Helm repo cache
+helm repo update
 
-# Search Helm Repository
-helm search repo <KEY-WORD>
+# Search chart in repo
 helm search repo mychart1
 ```
 
-## Step-03: Install Helm Chart from our Custom Helm Repository
-```t
-# Install myapp1 Helm Chart
-helm install <RELEASE-NAME> <repo_name_in_your_local_desktop/chart_name>
-helm install myapp1 stacksimplify/mychart1 
+---
+
+## 🚀 Install Helm Chart
+
+```bash
+# Install chart from custom repo
+helm install myapp1 stacksimplify/mychart1
 ```
-## Step-04: List Resources and Access Application in Browser
-```t
-# List Helm Release
-helm ls 
-or 
+
+---
+
+## 🔍 Post-Install: List & Access Resources
+
+```bash
+# List Helm releases
 helm list
 
-# List Pods
+# Get running pods
 kubectl get pods
 
-# List Services 
+# View services
 kubectl get svc
 
-# Access Application
+# Access the app (via NodePort)
 http://localhost:<NODE-PORT>
+# Example:
 http://localhost:31231
 ```
 
-## Step-04: Helm Upgrade
-- [kubenginx Docker Image with 1.0.0, 2.0.0, 3.0.0, 4.0.0](https://github.com/users/stacksimplify/packages/container/package/kubenginx)
-```t
-# Review the Docker Image Versions we are using
-https://github.com/users/stacksimplify/packages/container/package/kubenginx
-Image Tags: 1.0.0, 2.0.0, 3.0.0, 4.0.0
+---
 
-# Helm Upgrade
-helm upgrade <RELEASE-NAME> <repo_name_in_your_local_desktop/chart_name> --set <OVERRIDE-VALUE-FROM-values.yaml>
+## 🔁 Helm Upgrade Using --set
+
+* Docker Image: [`kubenginx`](https://github.com/users/stacksimplify/packages/container/package/kubenginx)
+* Available Tags: `1.0.0`, `2.0.0`, `3.0.0`, `4.0.0`
+
+```bash
+# Upgrade image version via --set
 helm upgrade myapp1 stacksimplify/mychart1 --set "image.tag=2.0.0"
 ```
-## Step-05: List Resources after helm upgrade
-```t
-# List Helm Releases
-helm list 
-Observation: We should see Revision as 2
 
-# Additional List commands
+---
+
+## 🧾 Validate Upgrade Resources
+
+```bash
+# List releases - revision should increment
+helm list
+
+# List superseded or deployed releases
 helm list --superseded
 helm list --deployed
 
-# List and Describe Pod
+# Inspect pod and verify image version
 kubectl get pods
-kubectl describe pod <POD-NAME> 
-Observation: In the Pod Events you should find that "ghcr.io/stacksimplify/kubenginx:2.0.0" is pulled or if already exists on desktop it will be used to create this new pod
+kubectl describe pod <POD-NAME>
 
-# Access Application
-http://localhost:<NODE-PORT>
-http://localhost:31231
-Observation: Version 2 of application should be displayed
-```
-
-## Step-06: Do two more helm upgrades - For practice purpose
-```t
-# Helm Upgrade to 3.0.0
-helm upgrade myapp1 kalyan-repo/myapp1 --set "image.tag=3.0.0"
-
-# Access Application
-http://localhost:<NODE-PORT>
-http://localhost:31231
-
-# Helm Upgrade to 4.0.0
-helm upgrade myapp1 kalyan-repo/myapp1 --set "image.tag=4.0.0"
-
-# Access Application
-http://localhost:<NODE-PORT>
+# App access (check updated version)
 http://localhost:31231
 ```
 
-## Step-07: Helm History
-- History prints historical revisions for a given release.
-```t
-# helm history
-helm history RELEASE_NAME
+---
+
+## 🔁 Practice: Additional Helm Upgrades
+
+```bash
+# Upgrade to version 3.0.0
+helm upgrade myapp1 stacksimplify/mychart1 --set "image.tag=3.0.0"
+
+# Upgrade to version 4.0.0
+helm upgrade myapp1 stacksimplify/mychart1 --set "image.tag=4.0.0"
+```
+
+---
+
+## 🕓 Helm History
+
+```bash
+# View historical revisions
 helm history myapp1
 ```
 
-## Step-08: Helm Status
-- This command shows the status of a named release. 
-```t
-# Helm Status
-helm status RELEASE_NAME
+---
+
+## 📊 Helm Status
+
+```bash
+# View current status of release
 helm status myapp1
 
-# Helm Status - Show Description (display the description message of the named release)
-helm status myapp1 --show-desc    
+# Show description
+helm status myapp1 --show-desc
 
-# Helm Status - Show Resources (display the resources of the named release)
-helm status myapp1  --show-resources   
+# Show resources managed by the release
+helm status myapp1 --show-resources
 
-# Helm Status - revision (display the status of the named release with revision)
-helm status RELEASE_NAME --revision int
+# View status for a specific revision
 helm status myapp1 --revision 2
 ```
 
-## Step-09: Uninstall Helm Release
-```t
-# Uninstall Helm Release
+---
+
+## 🧹 Cleanup: Uninstall Release
+
+```bash
+# Remove Helm release
 helm uninstall myapp1
 ```
 
+---
 
+## ⚙️ Optional: Bash Script for Upgrade
 
+Create a file called `helm-upgrade.sh`:
+
+```bash
+#!/bin/bash
+
+# Usage: ./helm-upgrade.sh <release-name> <image-tag>
+
+RELEASE_NAME=$1
+IMAGE_TAG=$2
+CHART_NAME="stacksimplify/mychart1"
+
+if [[ -z "$RELEASE_NAME" || -z "$IMAGE_TAG" ]]; then
+  echo "Usage: $0 <release-name> <image-tag>"
+  exit 1
+fi
+
+echo "Upgrading $RELEASE_NAME to image tag $IMAGE_TAG..."
+helm upgrade "$RELEASE_NAME" "$CHART_NAME" --set "image.tag=$IMAGE_TAG"
+
+echo "Upgrade complete. Checking pod status..."
+kubectl get pods -l app.kubernetes.io/instance=$RELEASE_NAME
+```
+
+> Make it executable:
+
+```bash
+chmod +x helm-upgrade.sh
+```
+
+> Run it:
+
+```bash
+./helm-upgrade.sh myapp1 3.0.0
+```
+
+---
+
+## ✅ Summary
+
+| Step     | Command                        | Description                        |
+| -------- | ------------------------------ | ---------------------------------- |
+| Add Repo | `helm repo add`                | Add custom repo to Helm            |
+| Install  | `helm install`                 | Deploy initial release             |
+| Upgrade  | `helm upgrade --set`           | Upgrade release with new image tag |
+| Inspect  | `helm list / history / status` | Monitor status and changes         |
+| Cleanup  | `helm uninstall`               | Remove release                     |
+
+---
+
+Let me know if you'd like the same guide exported as a `.md` file or need the bash script extended with rollback or error handling features.
