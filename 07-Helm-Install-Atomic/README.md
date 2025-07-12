@@ -1,67 +1,135 @@
-# Helm Install Atomic Flag
+# 💣 Helm Install with `--atomic` Flag
 
-## Step-01: Introduction
-- We will learn to use `--atomic` flag when installing the Helm Release and also understand the importance of using it in a practical way
+> Ensure *clean rollbacks* on failure! Learn how to use Helm's `--atomic` flag to avoid leaving failed releases behind.
 
-## Step-02: Install Helm Chart - Release: dev101
-```t
-# Install Helm Chart 
+---
+
+## 📘 Step 01: Introduction
+
+The `--atomic` flag is a powerful option when using `helm install`:
+
+* Automatically **rolls back** a failed installation
+* Prevents cluttering your cluster with failed releases
+* Activates the `--wait` flag by default to ensure all components are healthy before considering a release successful
+
+✅ **Best suited for**:
+
+* CI/CD pipelines
+* Production environments
+* Repeatable automated deployments
+
+---
+
+## 🚀 Step 02: Install Helm Chart (Release: `dev101`)
+
+```bash
+# Install chart normally (without atomic)
 helm install dev101 stacksimplify/mychart1
 
-# List Helm Release
-helm list 
+# List installed releases
+helm list
 
-# List Kubernetes Resources Deployed as part of this Helm Release
+# Check status and deployed resources
 helm status dev101 --show-resources
+```
 
-# Access Application
+🌐 **Access the application**:
+
+```
 http://localhost:31231
 ```
 
-## Step-03: Install Helm Chart - Release: qa101
-```t
-# Install Helm Chart 
+---
+
+## 💥 Step 03: Simulate Installation Failure (Release: `qa101`)
+
+```bash
+# Try installing a second release using the same nodePort (will fail)
 helm install qa101 stacksimplify/mychart1
-
-# List Helm Release
-helm list 
-Observation: You should see qa101 release installed with FAILED status
-
-Error: INSTALLATION FAILED: 1 error occurred:
-	* Service "qa101-mychart1" is invalid: spec.ports[0].nodePort: Invalid value: 31231: provided port is already allocated
-
-# Uninstall qa101 release which is in failed state
-helm uninstall qa101
-
-# List Helm Release
-helm list 
 ```
 
+📌 **Expected Error**:
 
-## Step-04: Install Helm Chart - Release: qa101 with --atomic flag
-- when `--atomic` flagis set, the installation process deletes the installation on failure. 
-- The `--wait` flag will be set automatically if `--atomic` is used
-- `--wait` will wait until all Pods, PVCs, Services, and minimum number of Pods of a Deployment, StatefulSet, or ReplicaSet are in a ready state before marking the release as successful. It will wait for as long as `--timeout`
-- `--timeout`  time to wait for any individual Kubernetes operation (like Jobs for hooks) (default 5m0s)
-```t
-# Install Helm Chart 
-helm install qa101 stacksimplify/mychart1 --atomic
-
-# List Helm Release
-helm list 
-Observation: We will not see qa101 FAILED release, --atomic flag deleted the release as soon as it is failed with error
-
-Error: INSTALLATION FAILED: 1 error occurred:
-	* Service "qa101-mychart1" is invalid: spec.ports[0].nodePort: Invalid value: 31231: provided port is already allocated
+```
+INSTALLATION FAILED: Service "qa101-mychart1" is invalid:
+spec.ports[0].nodePort: Invalid value: 31231: provided port is already allocated
 ```
 
-## Step-05: Uninstall dev101 Release
-```t
-# Uninstall dev101 release
-helm uninstall dev101
-
-# List Helm Releases
+```bash
+# List releases — you'll see 'qa101' with FAILED status
 helm list
 ```
 
+🧹 **Cleanup the failed release manually**:
 
+```bash
+helm uninstall qa101
+```
+
+---
+
+## 🛡️ Step 04: Use `--atomic` to Auto-Rollback on Failure
+
+```bash
+# Install with atomic rollback
+helm install qa101 stacksimplify/mychart1 --atomic
+```
+
+📌 **Expected Behavior**:
+
+* Installation fails (due to the same port conflict)
+* Helm **automatically deletes** the failed release
+* `helm list` will **not** show `qa101` at all
+
+⚠️ **Error still appears** for visibility:
+
+```
+INSTALLATION FAILED: Service "qa101-mychart1" is invalid:
+spec.ports[0].nodePort: Invalid value: 31231: provided port is already allocated
+```
+
+⏱️ The following flags are automatically triggered by `--atomic`:
+
+* `--wait`: Waits for pods and services to become ready
+* `--timeout`: Defaults to 5m unless otherwise specified
+
+---
+
+## 🧹 Step 05: Uninstall the `dev101` Release
+
+```bash
+# Clean up original release
+helm uninstall dev101
+
+# Confirm removal
+helm list
+```
+
+---
+
+## ✅ Summary
+
+| Feature             | Command Example                                      | Behavior / Outcome                      |
+| ------------------- | ---------------------------------------------------- | --------------------------------------- |
+| Normal Install      | `helm install dev101 stacksimplify/mychart1`         | Installs the chart                      |
+| Failure (No Atomic) | `helm install qa101 stacksimplify/mychart1`          | Leaves release in FAILED state          |
+| Atomic Install      | `helm install qa101 stacksimplify/mychart1 --atomic` | Rolls back failed install automatically |
+| Cleanup             | `helm uninstall <release-name>`                      | Removes installed release               |
+
+---
+
+## 💡 Best Practice Tip
+
+In automated environments (CI/CD), always use:
+
+```bash
+helm install <release> <chart> --atomic
+```
+
+to:
+
+* Avoid leftover failed states
+* Ensure cluster consistency
+* Safeguard against partial deployments
+
+---

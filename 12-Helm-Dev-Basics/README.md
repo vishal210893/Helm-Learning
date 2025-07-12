@@ -1,182 +1,203 @@
-# Helm Template Functions and Pipelines
+# 🧩 Helm Template Functions and Pipelines
 
-## Step-01: Introduction
-1. Template Actions `{{ }}`
-2. Action Elements `{{ .Release.Name }}`
-3. Quote Function
-4. Pipeline 
-5. default Function
-6. lower function
-7. Controlling White Spaces `{{-  -}}`
-7. indent function
-8. nindent function
-9. toYaml
+> Dive deep into Helm’s powerful template engine based on Go’s text/template. Learn how to use functions, pipelines, default values, YAML conversions, and whitespace control to build dynamic, maintainable Kubernetes manifests.
 
-## Step-02: Template Action "{{ }}"
-- Anything in between Template Action `{{ .Chart.Name }}` is called Action Element
-- Anything in between Template Action `{{ .Chart.Name }}` will be rendered by helm template engine and replace necessary values
-- Anything outside of the template action will be printed as it is.
-- Action elements defined inside the `{{ }}` will help us to retrieve data from other sources (example: `.Chart.Name`).
-### Step-02-01: Valid Action Element
-```t
-# deployment.yaml file
+---
+
+## 📘 Step-01: Introduction
+
+Helm templates are **not static YAML files**. They are **rendered dynamically** using Go's templating engine, which allows us to inject values, apply transformations, and control whitespace or indentation.
+
+This section covers the following:
+
+1. **Template Actions** using `{{ }}`
+2. **Action Elements** like `{{ .Release.Name }}`
+3. Using the `quote` function
+4. How to **chain transformations** using pipelines
+5. Using the `default` and `lower` functions
+6. How to **control whitespace** with `{{- -}}`
+7. Using `indent` and `nindent` for structured YAML
+8. Leveraging `toYaml` to convert complex values
+
+---
+
+## 🧠 Step-02: Template Actions (`{{ }}`)
+
+### What is a Template Action?
+
+In Helm, anything inside double curly braces (`{{ ... }}`) is known as a **template action**. These are parsed and executed by Helm's engine during template rendering.
+
+* Action Elements like `{{ .Chart.Name }}` are dynamic and replaced with actual values
+* Text **outside** `{{ }}` is rendered literally
+* These actions allow us to:
+
+    * Pull in metadata
+    * Render conditionals
+    * Use functions and pipelines
+    * Iterate over values
+
+---
+
+### ✅ Step-02-01: Valid Action Element
+
+```yaml
+# deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  # Template Action with Action Elements
   name: {{ .Release.Name }}-{{ .Chart.Name }}
-
-# Change to CHART Directory
-cd helmbasics
-
-# Helm Template Command
-helm template myapp101 .
-1. helm template command helps us to check the output of the chart in fully rendered Kubernetes resource templates. 
-2. This will be very helpful when we are developing a new chart, making changes to the chart templates, for debugging etc.
 ```
-### Step-02-02: Invalid Action Element 
-```t
-# deployment.yaml file
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  # Template Action with Action Elements
-  name: {{ something }}-{{ .Chart.Name }}
-# Change to CHART Directory
+
+```bash
+# Change to chart directory
 cd helmbasics
 
-# Helm Template Command
-helm template myapp101 .  
-Observation:
-1. Should fail with error
-2. In short, inside Action Element we should have 
+# Render the manifest without applying it
+helm template myapp101 .
+```
 
+> This will render a Deployment name like `myapp101-helmbasics`. The `helm template` command is **very useful during development and debugging**, as it shows the final Kubernetes manifest without actually applying it to a cluster.
+
+---
+
+### ❌ Step-02-02: Invalid Action Element
+
+```yaml
+# deployment.yaml
+metadata:
+  name: {{ something }}-{{ .Chart.Name }}
+```
+
+```bash
+helm template myapp101 .
+```
+
+📌 **Error Output**:
+
+```
 Error: parse error at (helmbasics/templates/deployment.yaml:10): function "something" not defined
 ```
 
-## Step-03: Template Function: quote
-```t
-# Add Quote Function 
-  annotations:    
-    app.kubernetes.io/managed-by: {{ .Release.Service }}
-    # quote function
-    app.kubernetes.io/managed-by: {{ quote .Release.Service }} 
+> ❗ This fails because `something` is **not defined in Helm’s built-in scope**. You can only use valid objects (like `.Chart`, `.Values`, etc.) or defined template functions.
 
-# Change to CHART Directory
+---
+
+## 🔤 Step-03: Template Function – `quote`
+
+The `quote` function wraps a value in double quotes.
+
+```yaml
+annotations:
+  app.kubernetes.io/managed-by: {{ quote .Release.Service }}
+```
+
+> This is helpful for ensuring your strings are properly quoted in YAML, especially when dealing with values that may contain spaces or special characters.
+
+```bash
 cd helmbasics
-
-# Helm Template Command
 helm template myapp101 .
 ```
 
-## Step-04: Pipeline
-- Pipelines are an efficient way of getting several things done in sequence. 
-- Inverting the order is a common practice in templates (.val | quote ) 
-```t
-# Add Quote Function with Pipeline
-  annotations:    
-    app.kubernetes.io/managed-by: {{ .Release.Service }}
-    # quote function
-    app.kubernetes.io/managed-by: {{ quote .Release.Service }} 
-    # quote function with pipeline
-    app.kubernetes.io/managed-by: {{ .Release.Service | quote }}               
+---
 
-# Change to CHART Directory
-cd helmbasics
+## 🔁 Step-04: Using Pipelines
 
-# Helm Template Command
-helm template myapp101 .
+Pipelines allow you to **chain multiple functions or actions together**, passing the output of one function as input to the next.
+
+```yaml
+annotations:
+  # No pipeline
+  app.kubernetes.io/managed-by: {{ quote .Release.Service }}
+  
+  # Same with pipeline
+  app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
 ```
 
-## Step-05: Template Function: default and lower
-- [default function](https://helm.sh/docs/chart_template_guide/function_list/#default)
-```t
+> Pipelines improve readability and allow **layered transformations**. For example:
+> `{{ .Release.Service | quote | lower }}`
+
+---
+
+## 🧩 Step-05: Functions – `default`, `lower`
+
+Helm offers many built-in functions to transform or sanitize values.
+
+### Example: `default` and `lower`
+
+```yaml
 # values.yaml
 releaseName: "newrelease101"
 replicaCount: 3
+```
 
-# Template Function default
-  annotations:
-    app.kubernetes.io/managed-by: {{ .Release.Service }}
-    # Quote Function
-    app.kubernetes.io/managed-by: {{ quote .Release.Service }}        
-    # Pipeline
-    app.kubernetes.io/managed-by: {{ .Release.Service | quote | upper | lower }}        
-    # default Function
-    app.kubernetes.io/name: {{ default "MYRELEASE101" .Values.releaseName | lower }}
+```yaml
+annotations:
+  app.kubernetes.io/name: {{ default "MYRELEASE101" .Values.releaseName | lower }}
 spec:
-  replicas: {{ default 1  .Values.replicaCount }}
+  replicas: {{ default 1 .Values.replicaCount }}
+```
 
-# Change to CHART Directory
-cd helmbasics
+> * `default`: Provides a fallback value if the user doesn’t supply one.
+> * `lower`: Converts a string to lowercase.
 
-# Helm Template Command
+This ensures your chart works **even if the user omits certain values** in their `values.yaml`.
+
+```bash
 helm template myapp101 .
 ```
 
-## Step-06: Controlling Whitespaces
-- **{{- .Chart.name }}:**  If a hyphen is added before the statement, `{{- .Chart.name }}` then the leading whitespace will be ignored during the rendering
-- **{{ .Chart.name -}}:** If a hyphen is added after the statement, `{{ .Chart.name -}}` then the trailing whitespace will be ignored during the rendering
-```yaml
-  annotations:
-    app.kubernetes.io/managed-by: {{ .Release.Service }}
-    # Quote Function
-    app.kubernetes.io/managed-by: {{ quote .Release.Service }}        
-    # Pipeline
-    app.kubernetes.io/managed-by: {{ .Release.Service | quote | upper | lower }}        
-    # default Function
-    app.kubernetes.io/name: {{ default "MYRELEASE101" .Values.releaseName }}
-    # Controlling Leading and Trailing White spaces 
-    leading-whitespace: "   {{- .Chart.Name }}    kalyan"
-    trailing-whitespace: "   {{ .Chart.Name -}}    kalyan"
-    leadtrail-whitespace: "   {{- .Chart.Name -}}    kalyan"    
+---
 
-# Change to CHART Directory
-cd helmbasics
+## 🧼 Step-06: Controlling Whitespace with `{{- -}}`
 
-# Helm Template Command
-helm template myapp101 .    
-```
-
-
-## Step-07: indent and nindent functions
-- **indent:** The [indent function](https://helm.sh/docs/chart_template_guide/function_list/#indent) indents every line in a given string to the specified indent width. This is useful when aligning multi-line strings:
-- **nindent:** The [nindent function](https://helm.sh/docs/chart_template_guide/function_list/#nindent) is the same as the indent function, but prepends a new line to the beginning of the string.
+Whitespace control is critical in YAML-sensitive environments like Kubernetes.
 
 ```yaml
-# indent and nindent functions
-  annotations:
-    app.kubernetes.io/managed-by: {{ .Release.Service }}
-    # Quote Function
-    app.kubernetes.io/managed-by: {{ quote .Release.Service }}        
-    # Pipeline
-    app.kubernetes.io/managed-by: {{ .Release.Service | quote | upper | lower }}        
-    # default Function
-    app.kubernetes.io/name: {{ default "MYRELEASE101" .Values.releaseName | lower }}
-    # Controlling Leading and Trailing White spaces 
-    leading-whitespace: "   {{- .Chart.Name }}    kalyan"
-    trailing-whitespace: "   {{ .Chart.Name -}}    kalyan"
-    leadtrail-whitespace: "   {{- .Chart.Name -}}    kalyan"  
-    # indent function
-    indenttest: "  {{- .Chart.Name | indent 4 -}}  "
-    # nindent function
-    nindenttest: "  {{- .Chart.Name | nindent 4 -}}  "  
-
-# Change to CHART Directory
-cd helmbasics
-
-# Helm Template Command
-helm template myapp101 .    
+annotations:
+  leading-whitespace: "   {{- .Chart.Name }}    kalyan"
+  trailing-whitespace: "   {{ .Chart.Name -}}    kalyan"
+  leadtrail-whitespace: "   {{- .Chart.Name -}}    kalyan"
 ```
 
+> * `{{-` trims whitespace **before** the statement
+> * `-}}` trims whitespace **after** the statement
+> * `{{- .Chart.Name -}}` trims **both**
 
-## Step-08: Template Function: toYaml 
-- **toYaml:** 
-- We can use [toYaml function](https://helm.sh/docs/chart_template_guide/function_list/#type-conversion-functions) inside the helm template actions to convert an object into YAML.
-- Convert list, slice, array, dict, or object to indented yaml. 
-```t
-# values.yaml
-# Resources for testing Template Function: toYaml 
+```bash
+helm template myapp101 .
+```
+
+---
+
+## ✨ Step-07: `indent` and `nindent` Functions
+
+These functions are useful when embedding **multi-line values** into YAML, such as `resources`, `configMaps`, or even `initContainers`.
+
+### 🔹 Example:
+
+```yaml
+annotations:
+  # Basic
+  indenttest: "  {{- .Chart.Name | indent 4 -}}  "
+  
+  # With new line
+  nindenttest: "  {{- .Chart.Name | nindent 4 -}}  "
+```
+
+> * `indent`: Adds indentation but **does not prepend a newline**
+> * `nindent`: Adds both a newline and indentation
+
+These are crucial for formatting nested blocks, especially inside `containers`, `volumes`, or config maps.
+
+---
+
+## 🧬 Step-08: Function – `toYaml`
+
+The `toYaml` function converts a complex object like a dict, list, or nested structure into proper YAML formatting. It is often used with `nindent` to ensure alignment.
+
+### 🔹 values.yaml
+
+```yaml
 resources: 
   limits:
     cpu: 100m
@@ -184,35 +205,54 @@ resources:
   requests:
     cpu: 100m
     memory: 128Mi
+```
 
-# deployment.yaml
-    spec:
-      containers:
-      - name: nginx
-        image: ghcr.io/stacksimplify/kubenginx:4.0.0
-        ports:
-        - containerPort: 80
-        resources: 
-        {{- toYaml .Values.resources | nindent 10}}
+### 🔹 deployment.yaml
 
-# Change to CHART Directory
-cd helmbasics
+```yaml
+spec:
+  containers:
+  - name: nginx
+    image: ghcr.io/stacksimplify/kubenginx:4.0.0
+    ports:
+    - containerPort: 80
+    resources:
+    {{- toYaml .Values.resources | nindent 10 }}
+```
 
-# Helm Template Command
+> This renders the YAML block for `resources` with proper spacing and format.
+
+### 🔍 Run Commands
+
+```bash
 helm template myapp101 .
-
-# Helm Install with --dry-run
 helm install myapp101 . --dry-run
-
-# Helm Install
 helm install myapp101 . --atomic
-
-# List k8s Pods
-kubectl get pods 
-
-# Describe Pod
+kubectl get pods
 kubectl describe pod <POD-NAME>
-
-# Helm Uninstall
 helm uninstall myapp101
 ```
+
+---
+
+## ✅ Final Summary Table
+
+| Concept           | Description                                    |                                           |
+| ----------------- | ---------------------------------------------- | ----------------------------------------- |
+| `{{ . }}`         | Root context object (represents current scope) |                                           |
+| `quote`           | Wraps a string in double quotes                |                                           |
+| \`                | \`                                             | Pipeline operator, chains transformations |
+| `default`         | Provides a fallback if a value is not defined  |                                           |
+| `lower` / `upper` | Converts string to lower or upper case         |                                           |
+| `{{-`, `-}}`      | Trim leading or trailing whitespace            |                                           |
+| `indent`          | Indents each line of the given block           |                                           |
+| `nindent`         | Like `indent`, but adds a newline at the start |                                           |
+| `toYaml`          | Converts an object to properly formatted YAML  |                                           |
+
+---
+
+## 📚 Additional Learning Resources
+
+* 🔗 [Helm Functions Reference](https://helm.sh/docs/chart_template_guide/function_list/)
+* 🔗 [Go Template Language Overview](https://pkg.go.dev/text/template)
+

@@ -1,84 +1,146 @@
-# Helm with Kubernetes Namespaces
+# 📦 Helm with Kubernetes Namespaces
 
-## Step-01: Introduction
-- Any resource we manage using HELM are specific to Kubernetes Namespace
-- By default, Kubernetes resources deployed to k8s cluster using default namespace, so we don't need to specify namespace name explicitly
-- In the case if we want to deploy k8s resources to a namespace (other than default), then we need to specify that in `helm install` command with flag `--namespace` or `-n`
-- In addition, we can also create a namespace during `helm install` using flags `--namespace`  `--create-namespace` 
+> Learn how to deploy, upgrade, and uninstall Helm releases to specific Kubernetes namespaces using `--namespace` and `--create-namespace` flags.
 
-## Step-02: Install Helm Release by creating Kubernetes Namespace dev
-```t
-# List Kubernetes Namespaces 
+---
+
+## 📘 Step 01: Introduction
+
+Helm deploys Kubernetes resources **within a namespace context**.
+
+### 🔑 Key Points:
+
+* 📌 **Default namespace** is used if none is specified.
+* 📂 You can deploy to any namespace using:
+
+    * `--namespace <name>` or `-n <name>`
+* 🏗️ You can also **create the namespace** automatically during install using:
+
+    * `--create-namespace`
+
+> ✅ This is especially helpful in multitenant clusters or isolated staging environments.
+
+---
+
+## 🚀 Step 02: Install Helm Release into a New Namespace (`dev`)
+
+```bash
+# 🔍 List current namespaces
 kubectl get ns
 
-# Install Helm Release by creating Kubernetes Namespace
-helm install dev101 stacksimplify/mychart2 --version "0.1.0" --namespace dev --create-namespace 
+# 📥 Install Helm chart and auto-create namespace 'dev'
+helm install dev101 stacksimplify/mychart2 \
+  --version "0.1.0" \
+  --namespace dev \
+  --create-namespace
+```
 
-# List Kubernetes Namespaces 
+```bash
+# 🔍 Confirm 'dev' namespace was created
 kubectl get ns
-Observation: Found the dev namespace created as part of `helm install`
+```
 
-# List Helm Release
-helm list --> NO RELEASES in default namespace
-helm list -n dev
+```bash
+# 📋 Check Helm releases
+helm list                # Default namespace: should show nothing
+helm list -n dev         # Our release will appear here
 helm list --namespace dev
+```
 
-# Helm Status
+```bash
+# 🔎 Get status and resources deployed
 helm status dev101 --show-resources -n dev
-helm status dev101 --show-resources --namespace dev
+```
 
-# List Kubernetes Pods
+```bash
+# 🧾 List Kubernetes resources in dev namespace
 kubectl get pods -n dev
-kubectl get pods --namespace dev
-
-# List Services
 kubectl get svc -n dev
-
-# List Deployments
 kubectl get deploy -n dev
+```
 
-# Access Application
+🌐 **Access the application**:
+
+```
 http://localhost:31232
 ```
 
-## Step-03: Run helm upgrade for resources present in dev namespace
-```t
-# Helm Upgrade
-helm upgrade dev101 stacksimplify/mychart2 --version "0.2.0" --namespace dev 
-or
-helm upgrade dev101 stacksimplify/mychart2 --version "0.2.0" -n dev
+---
 
-# List Helm Release
+## 🔁 Step 03: Upgrade Helm Release in `dev` Namespace
+
+```bash
+# ⬆️ Upgrade to a new chart version in 'dev'
+helm upgrade dev101 stacksimplify/mychart2 \
+  --version "0.2.0" \
+  --namespace dev
+```
+
+```bash
+# 📋 Verify release and resource status
 helm list -n dev
-helm list --namespace dev
-
-# Helm Status
 helm status dev101 --show-resources -n dev
-helm status dev101 --show-resources --namespace dev
+```
 
-# Access Application
+🌐 **Access the upgraded application**:
+
+```
 http://localhost:31232
 ```
 
-## Step-04: Uninstall Helm Release from dev Namespace
-```t
-# Uninstall Helm Releas
+---
+
+## 🧹 Step 04: Uninstall Helm Release from `dev` Namespace
+
+```bash
+# ❌ Uninstall Helm release from dev
 helm uninstall dev101 --namespace dev
-helm uninstall dev101 -n dev
+```
 
-# List Helm Release
+```bash
+# 📋 Confirm it's gone
 helm list -n dev
-helm list --namespace dev
+```
 
-# List Kubernetes Namespaces
+```bash
+# 🔍 Check if the namespace still exists
 kubectl get ns
-Observation: 
-1. When uninstalling helm release, it will not delete the Kubernetes Resource: dev namespace. 
-2. If we dont need that dev namespace we need to manually delete it from kubernetes using kubectl
+```
 
-# Delete dev namespace
+📌 **Observation**:
+
+* Helm does **not delete the namespace**.
+* If it's no longer needed, manually delete it:
+
+```bash
+# 🗑️ Delete the 'dev' namespace
 kubectl delete ns dev
 
-# List Kubernetes Namespaces
+# 🔄 Verify deletion
 kubectl get ns
 ```
+
+---
+
+## ✅ Summary
+
+| Action                           | Command Example                                         | Description                                      |
+| -------------------------------- | ------------------------------------------------------- | ------------------------------------------------ |
+| Install to namespace             | `helm install dev101 <chart> -n dev --create-namespace` | Deploys to `dev` and creates namespace if needed |
+| List releases in namespace       | `helm list -n dev`                                      | Shows releases only in specified namespace       |
+| Get status in namespace          | `helm status dev101 -n dev --show-resources`            | Shows resource state in the namespace            |
+| Upgrade in namespace             | `helm upgrade dev101 <chart> --version <v> -n dev`      | Upgrades release in `dev`                        |
+| Uninstall release from namespace | `helm uninstall dev101 -n dev`                          | Removes release but **not** the namespace        |
+| Delete namespace (optional)      | `kubectl delete ns dev`                                 | Clean up the namespace manually                  |
+
+---
+
+## 💡 Best Practice Tip
+
+When designing **CI/CD workflows**, always:
+
+* Use **namespaced releases** for isolation
+* Prefer `--create-namespace` for idempotency
+* Clean up with `kubectl delete ns <name>` only when sure nothing else lives in that namespace
+
+---
