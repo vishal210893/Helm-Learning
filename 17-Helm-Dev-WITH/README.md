@@ -1,113 +1,147 @@
-# Helm Development - Flow Control With 
+# 🧭 Helm Development – Flow Control Using `with` Action
 
-## Step-01: Introduction
-- `with` action controls variable scoping. 
-- `with` action can allow you to set the current scope (.) to a particular object. 
-### with action Syntax
-```t
+---
+
+## 📘 Step-01: Introduction
+
+Helm’s templating engine is designed not only for rendering YAML but also for creating reusable, scoped, and manageable templates. One of the key flow control constructs in Helm is the `with` action.
+
+The `with` statement allows us to:
+
+* Narrow down the **scope** (dot `.`) to a specific object in the chart values.
+* Write **cleaner and more readable** templates when accessing nested values repeatedly.
+* Avoid verbosity by eliminating repeated access paths like `.Values.foo.bar.baz`.
+
+### 🔹 Syntax:
+
+```gotemplate
 {{ with PIPELINE }}
-  # restricted scope
+  # Inside this block, "." refers to the result of PIPELINE
 {{ end }}
 ```
-## Step-02: Review values.yaml
+
+---
+
+## 🧾 Step-02: Sample `values.yaml`
+
+This file provides annotations to be inserted into a pod spec:
+
 ```yaml
-# For testing Flow Control: with 
 podAnnotations: 
   appName: myapp1
   appType: webserver
   appTech: HTML
 ```
 
-## Step-03: Implement "with" action
-- `with` action statement sets the dot obejct "." to `.Values.podAnnotations` 
-- Inside the `with` action block dot "." always refers to `.Values.podAnnotations` 
-- Outside the `with` action block dot "." refers to Root Object
+---
+
+## ⚙️ Step-03: Using the `with` Block
+
+Let’s say we want to apply the annotations from `.Values.podAnnotations` into a pod spec. Using `with`, we can simplify access:
+
 ```yaml
-  template:
-    metadata:
-      {{- with .Values.podAnnotations }}
-      annotations:
-        {{- toYaml . | nindent 8 }}        
-      {{- end }}    
+template:
+  metadata:
+    {{- with .Values.podAnnotations }}
+    annotations:
+      {{- toYaml . | nindent 8 }}        
+    {{- end }}
 ```
 
-## Step-04: Test the "with" action Implementation
-```t
-# Change to Chart Directory
-cd helmbasics  
+### ✅ Explanation:
 
-# Helm Template
+* `.Values.podAnnotations` is passed into the `with` block.
+* Inside the block, `.` becomes `.Values.podAnnotations`.
+* We use `toYaml` to render the key-value pairs correctly.
+* `nindent 8` ensures proper YAML indentation under the `annotations:` field.
+
+---
+
+## 🔍 Step-04: Test the `with` Block Implementation
+
+```bash
+# Navigate to Chart Directory
+cd helmbasics
+
+# Render manifest using template
 helm template myapp101 .
 
-# Helm Install with dry-run
-helm install myapp101 . --dry-run  
-
-# Observation:
-We should see all the annotations displayed
-      annotations:
-        appName: myapp1
-        appTech: HTML
-        appType: webserver
+# Simulate install
+helm install myapp101 . --dry-run
 ```
 
-## Step-05: Try to access any Root Object in "with" action block
-```t
-# Add Root Object in with Block
-  template:
-    metadata:
-      {{- with .Values.podAnnotations }}
-      annotations:
-        {{- toYaml . | nindent 8 }}
-        appManagedBy: {{ .Release.Service }}
-      {{- end }}    
+### 🧾 Expected Output
 
-# Change to Chart Directory
-cd helmbasics  
-
-# Helm Template
-helm template myapp101 .
-
-# Helm Install with dry-run
-helm install myapp101 . --dry-run  
-
-# Observation:
-1. It should throw an error and fail because .Release.Service is not inside of the restricted scope for . which refers to ".Values.podAnnotations". 
-
-## Sample Error
-Error: template: helmbasics/templates/deployment.yaml:23:33: executing "helmbasics/templates/deployment.yaml" at <.Release.Service>: nil pointer evaluating interface {}.Service
-```
-
-## Step-06: Add $ to Root Object
-- To access Root Objects inside `with` action block we need to prepend that Root object with `$`
-```t
-# To Access Root Object
-       appManagedBy: {{ $.Release.Service }}
-
- # Change to Chart Directory
-cd helmbasics  
-
-# Helm Template
-helm template myapp101 .
-
-# Helm Install with dry-run
-helm install myapp101 . --dry-run  
-
-# Observation:
-1. It should work as expected
-      annotations:
-        appName: myapp1
-        appTech: HTML
-        appType: webserver
-        appManagedBy: Helm  
-```
-
-## Step-07: Scope more detailed for "with" action block
-- How to retrieve a single object from `.Values.myapps.data.config` ?
-- What if there is only need for 1 or 2 values from `.Values.myapps.data.config` ?
-- How to access each key value from `.Values.myapps.data.config` ?
 ```yaml
-# values.yaml
-# For testing Flow Control: with - Scope more detailed
+annotations:
+  appName: myapp1
+  appTech: HTML
+  appType: webserver
+```
+
+---
+
+## ❌ Step-05: Trying to Access a Root Object from Inside `with` (Fails)
+
+What if we try to use `.Release.Service` (a top-level object) **inside** the `with` block?
+
+```yaml
+template:
+  metadata:
+    {{- with .Values.podAnnotations }}
+    annotations:
+      {{- toYaml . | nindent 8 }}
+      appManagedBy: {{ .Release.Service }}   # ❌ this will fail
+    {{- end }}
+```
+
+### 🧨 Error:
+
+```text
+Error: template: helmbasics/templates/deployment.yaml:23:33:
+executing "helmbasics/templates/deployment.yaml" at <.Release.Service>:
+nil pointer evaluating interface {}.Service
+```
+
+### 🧠 Why It Fails:
+
+Within the `with` block, `.` is scoped only to `.Values.podAnnotations`. The `.Release.Service` key does not exist within that object.
+
+---
+
+## ✅ Step-06: Fix Scope Access Using `$`
+
+To reference the **global context** (the root object) within a nested block, use `$`:
+
+```yaml
+template:
+  metadata:
+    {{- with .Values.podAnnotations }}
+    annotations:
+      {{- toYaml . | nindent 8 }}
+      appManagedBy: {{ $.Release.Service }}   # ✅ This works
+    {{- end }}
+```
+
+### ✅ Expected Output:
+
+```yaml
+annotations:
+  appName: myapp1
+  appTech: HTML
+  appType: webserver
+  appManagedBy: Helm
+```
+
+---
+
+## 🧠 Step-07: Advanced Scope – Nested Objects
+
+Let’s now explore how to access specific keys from a deeply nested object using `with`.
+
+### Sample `values.yaml`
+
+```yaml
 myapps:
   data: 
     config: 
@@ -115,8 +149,11 @@ myapps:
       appType: webserver
       appTech: HTML
       appDb: mysql
+```
 
-# Current Scope: Retrieve single object using scope
+### Rendered in a ConfigMap Using `with`
+
+```yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -125,17 +162,54 @@ data:
 {{- with .Values.myapps.data.config }}
   application-name: {{ .appName }}
   application-type: {{ .appType }}
-{{- end}} 
+{{- end }}
+```
 
- # Change to Chart Directory
-cd helmbasics  
+### 🧾 Explanation:
 
-# Helm Template
+* The `with` block resets scope to `.Values.myapps.data.config`.
+* Now `.appName` and `.appType` are directly accessible.
+* Clean and avoids long dotted paths like `.Values.myapps.data.config.appName`.
+
+---
+
+## 🧪 Step-08: Test Advanced `with` Scope
+
+```bash
+cd helmbasics
+
+# Render the chart and confirm the ConfigMap values
 helm template myapp101 .
 
-# Helm Install with dry-run
-helm install myapp101 . --dry-run  
-
-# Observation:
-1. We should be able to get values for {{ .appName }} and {{ .appType }}
+# Optional dry-run install
+helm install myapp101 . --dry-run
 ```
+
+### 🧾 Expected Output:
+
+```yaml
+data:
+  application-name: myapp1
+  application-type: webserver
+```
+
+---
+
+## ✅ Summary: When and Why to Use `with`
+
+| Use Case                                           | Why Use `with`                           |
+| -------------------------------------------------- | ---------------------------------------- |
+| Deeply nested structures                           | Avoid redundant dotted paths             |
+| Conditional rendering                              | Prevents clutter with scoped logic       |
+| Repeated reference to same object                  | Improves clarity and reduces verbosity   |
+| Need to access global values within a scoped block | Use `$` to break out of scoped dot (`.`) |
+
+---
+
+## 📚 Additional Resources
+
+* 🔗 [Helm Template Guide: `with`](https://helm.sh/docs/chart_template_guide/control_structures/#the-with-statement)
+* 🔗 [Function List: toYaml, nindent](https://helm.sh/docs/chart_template_guide/function_list/)
+* 🔗 [Flow Control with Root Access via `$`](https://helm.sh/docs/chart_template_guide/function_list/#using-the-root-context)
+
+---
