@@ -1,84 +1,113 @@
 # Helm Dependency - Condition with Alias
 
 ## Step-01: Introduction
-- Implement `Condition` for enabling or disabling Sub Charts or Child Charts
-- Override subchart(child chart) values from parent chart
 
+* Helm allows defining multiple instances of the same subchart using different aliases.
+* The `condition` field enables fine-grained control over which aliased subcharts are rendered and installed.
+* Values for controlling these conditions must use the alias names, not the original subchart name.
 
-## Step-02: Chart.yaml
-- If we have multiple dependencies with same chart name `mychart4` with different alias names like `childchart4dev` and `childchart4qa` in this case we need to define values.yaml with `alias names` for enabling or disabling those sub charts
+---
+
+## Step-02: Configure `Chart.yaml` with Aliases and Conditions
+
 ```yaml
+# parentchart/Chart.yaml
 apiVersion: v2
 name: parentchart
 description: Learn Helm Dependency Concepts
 type: application
 version: 0.1.0
 appVersion: "1.16.0"
+
 dependencies:
-- name: mychart4
-  version: "0.1.0"
-  repository: "https://stacksimplify.github.io/helm-charts/"
-  alias: childchart4dev
-  condition: childchart4dev.enabled
-- name: mychart4
-  version: "0.1.0"
-  repository: "https://stacksimplify.github.io/helm-charts/"
-  alias: childchart4qa
-  condition: childchart4qa.enabled  
-- name: mychart2
-  version: "0.4.0"
-  repository: "https://stacksimplify.github.io/helm-charts/"
-  alias: childchart2
-  condition: childchart2.enabled
+  - name: mychart4
+    version: "0.1.0"
+    repository: "https://stacksimplify.github.io/helm-charts/"
+    alias: childchart4dev
+    condition: childchart4dev.enabled
+
+  - name: mychart4
+    version: "0.1.0"
+    repository: "https://stacksimplify.github.io/helm-charts/"
+    alias: childchart4qa
+    condition: childchart4qa.enabled  
+
+  - name: mychart2
+    version: "0.4.0"
+    repository: "https://stacksimplify.github.io/helm-charts/"
+    alias: childchart2
+    condition: childchart2.enabled
 ```
 
-## Step-03: Update values.yaml
-- Here only `childchart4qa` so only k8s resources for that chart should created in addition to parent chart resources
+### Notes:
+
+* Each alias must define its own `condition` referencing the alias name.
+* If `condition` is not explicitly disabled, Helm assumes the chart is enabled by default.
+
+---
+
+## Step-03: Update `values.yaml` to Control Aliased Subcharts
+
 ```yaml
-# Values for Child Charts with Alias Name of Chart
+# parentchart/values.yaml
 childchart4dev:
-  enabled: false 
+  enabled: false
+
 childchart4qa:
-  enabled: true   
+  enabled: true
+
 childchart2:
-  enabled: false 
+  enabled: false
 ```
 
+### Notes:
 
-## Step-04: Deploy and Test 
-```t
-# Helm Dependency Update
+* Setting `enabled: false` disables rendering and installation of that aliased subchart.
+* Use the alias name exactly in the `values.yaml` structure.
+
+---
+
+## Step-04: Deploy and Validate Results
+
+```bash
+# Download dependencies
 helm dependency update parentchart/
-or
-helm dep update parentchart/
 
-# Helm Install
+# Install parent chart
 helm install myapp1 parentchart/ --atomic
 
-# Helm List
+# Validate installation
 helm list
-
-# Helm Status
 helm status myapp1 --show-resources
-
-# List Deployments
 kubectl get deploy
-Observation:
-1. Resources for childchart4qa should be created in addition to parent chart
-
-# List Pods
 kubectl get pods
-
-# List Services
 kubectl get svc
-
-# Access Application
-parentchart: http://localhost:<port-from-get-svc-output>
-childchart4qa: http://localhost:<port-from-get-svc-output>
 ```
 
-## Step-05: Uninstall Helm Release
-```t
-# Helm Uninstall
+### Expected Outcome:
+
+* Only the parent chart and `childchart4qa` (enabled alias) will have Kubernetes resources deployed.
+* `childchart4dev` and `childchart2` will be skipped entirely due to `enabled: false`.
+
+---
+
+## Step-05: Uninstall Release
+
+```bash
 helm uninstall myapp1
 ```
+
+---
+
+## Additional Tip:
+
+To override values without modifying `values.yaml`, you can use CLI:
+
+```bash
+helm install myapp1 parentchart/ \
+  --set childchart4dev.enabled=false \
+  --set childchart4qa.enabled=true \
+  --set childchart2.enabled=false
+```
+
+This is particularly helpful in automation pipelines and dynamic deployment environments.

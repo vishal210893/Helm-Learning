@@ -1,17 +1,28 @@
 # Helm Hooks
 
 ## Step-01: Introduction
-- Understand Helm Hooks
 
-## Step-02: Create a simple Chart from Starter Chart 
-- **Important Note:** This step is optional for you because you will have all the Chart files and folders ready for you to implement hooksdemo1 in this respective section
-```t
-# Create Helm Chart from starter chart
+* Helm hooks allow chart developers to intervene at certain points in a release lifecycle. These are useful for tasks like initializing databases, running preflight checks, cleanup jobs, etc.
+
+* Hooks are declared using the `helm.sh/hook` annotation.
+
+---
+
+## Step-02: Create a Simple Chart Using Starter Chart
+
+> **Note:** You can skip this step if you already have the `hooksdemo1` chart prepared.
+
+```bash
+# Generate a new chart using your custom starter chart
 helm create hooksdemo1 --starter=mystarterchart
 ```
 
-## Step-03: Create/Review pre-install Hook
-- **File Location:** templates/preinstall-hookpod.yaml
+---
+
+## Step-03: Define a Pre-install Hook
+
+**File:** `templates/preinstall-hookpod.yaml`
+
 ```yaml
 apiVersion: v1
 kind: Pod
@@ -25,12 +36,15 @@ spec:
     - name: myhook-preinstall-container
       image: busybox
       imagePullPolicy: IfNotPresent
-      command:  ['sh', '-c', 'echo Pre-install hook Pod is running && sleep 15']      
+      command: ['sh', '-c', 'echo Pre-install hook Pod is running && sleep 15']
 ```
 
+---
 
-## Step-04: Create/Review pre-upgrade hook
-- **File Location:** templates/preupgrade-hookpod.yaml
+## Step-04: Define a Pre-upgrade Hook
+
+**File:** `templates/preupgrade-hookpod.yaml`
+
 ```yaml
 apiVersion: v1
 kind: Pod
@@ -44,11 +58,15 @@ spec:
     - name: myhook-preupgrade-container
       image: busybox
       imagePullPolicy: IfNotPresent
-      command:  ['sh', '-c', 'echo preupgrade hook Pod is running && sleep 15']       
+      command: ['sh', '-c', 'echo preupgrade hook Pod is running && sleep 15']
 ```
 
-## Step-05: Create/Review post-delete hook
-- **File Location:** templates/postdelete-hookpod.yaml
+---
+
+## Step-05: Define a Post-delete Hook
+
+**File:** `templates/postdelete-hookpod.yaml`
+
 ```yaml
 apiVersion: v1
 kind: Pod
@@ -62,88 +80,96 @@ spec:
     - name: myhook-postdelete-container
       image: busybox
       imagePullPolicy: IfNotPresent
-      command:  ['sh', '-c', 'echo post-delete hook Pod is running && sleep 15']
+      command: ['sh', '-c', 'echo post-delete hook Pod is running && sleep 15']
 ```
 
-## Step-06: Test Helm Hook: pre-install
-```t
-# Change Directory (In Helm Chart Folder)
+---
+
+## Step-06: Test Pre-install Hook
+
+```bash
 cd hooksdemo1
 
-# Install Helm Release
+# Install release
 helm install myapp101 . --atomic
 
-# List Helm Release
-helm list
-
-# List Kubernetes Pods
+# Check all pods including hook pod
 kubectl get pods
-Observation:
-1. We should see "myhook-preinstall" pod which should be completed status
 
-# Describe Pod
-kubectl describe pod myhook-preinstall
-
-# Verify Pod Start and Finish Times
-kubectl get pods
+# Describe hook pod
 kubectl describe pod myhook-preinstall | grep -E 'Anno|Started:|Finished:'
-kubectl describe pod myapp101-hooksdemo1-65b7c4d5b9-2rqfx | grep -E 'Anno|Started:|Finished:'
 
-# Access Application
+# Verify main application pod
+kubectl get pods
+kubectl describe pod $(kubectl get pods -l app.kubernetes.io/name=hooksdemo1 -o name) | grep -E 'Anno|Started:|Finished:'
+
+# Access app
 kubectl get svc
-http://localhost:31239
-Observation: We should see V1 version of application
+# Access app at: http://localhost:31239
 ```
 
-## Step-07: Hooks and the Release Lifecycle
-1. Lets say for `helm install` lifecycle we have defined two hooks `pre-install` and `post-install`, lets understand what happens
-2. Discuss by going to documentation [Hooks and the Release Lifecycle](https://helm.sh/docs/topics/charts_hooks/#hooks-and-the-release-lifecycle)
+**Observation:**
 
-## Step-08: Test Helm Hook: pre-upgrade
-```t
-# Change Directory (In Helm Chart Folder)
-cd hooksdemo1
+* The `myhook-preinstall` pod runs first and completes before the release is fully deployed.
+* Application should reflect v1 version.
 
-# Upgrade Helm Release
-helm list
+---
+
+## Step-07: Understand Hook Lifecycle
+
+* If both `pre-install` and `post-install` hooks are defined, Helm runs the hooks before and after installing templates respectively.
+
+* Refer to Helm docs on [hooks and the release lifecycle](https://helm.sh/docs/topics/charts_hooks/#hooks-and-the-release-lifecycle) for timing details and execution order.
+
+---
+
+## Step-08: Test Pre-upgrade Hook
+
+```bash
+# Perform upgrade with a new image tag
 helm upgrade myapp101 . --set image.tag=0.2.0
 
-# List Kubernetes Pods
-kubectl get pods
-Observation:
-1. We should see "myhook-preupgrade" pod which should be completed status
-
-# Describe Pod
-kubectl describe pod myhook-preupgrade
-
-# Verify Pod Start and Finish Times
+# Observe hook pod
 kubectl get pods
 kubectl describe pod myhook-preupgrade | grep -E 'Anno|Started:|Finished:'
-kubectl describe pod myapp101-hooksdemo1-7b997b4556-t6s75 | grep -E 'Anno|Started:|Finished:'
 
-# Access Application
+# Check app pod
+kubectl describe pod $(kubectl get pods -l app.kubernetes.io/name=hooksdemo1 -o name) | grep -E 'Anno|Started:|Finished:'
+
+# Access app
 kubectl get svc
-http://localhost:31239
-Observation: We should see V2 version of Application
+# Access app at: http://localhost:31239
 ```
 
-## Step-09: Test Helm Hook: post-delete
-```t
-# Change Directory (In Helm Chart Folder)
-cd hooksdemo1
+**Observation:**
 
-# Uninstall/Delete Helm Release
-helm list
-helm uninstall myapp101 
+* A new pod `myhook-preupgrade` is triggered during upgrade and completes before app update.
+* Application should reflect v2 version.
 
-# List Kubernetes Pods
+---
+
+## Step-09: Test Post-delete Hook
+
+```bash
+# Uninstall release
+helm uninstall myapp101
+
+# Verify pods
 kubectl get pods
-Observation:
-1. We should see "myhook-postdelete" pod which should be completed status
-2. We should see all the 3 hook pods present even after deleting/uninstalling the release
 ```
 
-## Step-10: Hook resources are not managed with corresponding releases
-1. The resources that a hook creates are currently not tracked or managed as part of the release. 
-2. Once Helm verifies that the hook has reached its ready state, it will leave the hook resource alone.
-3. In short, `helm uninstall` will not delete hook resources. 
+**Observation:**
+
+* You should still see `myhook-postdelete` pod in completed status.
+* All 3 hook pods remain present even after uninstall.
+
+---
+
+## Step-10: Hooks are Not Part of Release Resources
+
+* Hook-generated resources are **not tracked** as part of the release.
+* Helm will wait for them to complete (if applicable), but it will **not delete** them on `helm uninstall`.
+
+> ⚠️ This behavior means hook pods **must be manually cleaned up** if needed after their execution.
+
+---

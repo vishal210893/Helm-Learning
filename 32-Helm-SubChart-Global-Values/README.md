@@ -1,9 +1,15 @@
 # Helm Sub Charts - Use Global Values in Sub Charts
+
 ## Step-01: Introduction
-- Managing Dependencies manually
-- Define Global Values
+
+* In Helm, **global values** provide a mechanism for sharing configuration values between a parent chart and its subcharts.
+* This is especially useful when you want to enforce common settings (e.g., `replicaCount`, `image.tag`, `namespace`, etc.) across multiple charts without repeating them individually in each subchart.
+* This walkthrough demonstrates how to define and use global values in subcharts, while managing dependencies manually (via `file://`).
+
+---
 
 ## Step-02: Review Chart.yaml
+
 ```yaml
 apiVersion: v2
 name: parentchart
@@ -12,98 +18,149 @@ type: application
 version: 0.1.0
 appVersion: "1.16.0"
 dependencies:
-- name: mychart4
-  version: "0.1.0"
-  repository: "file://charts/mychart4"
-  alias: childchart4
-  tags: 
-    - frontend
-- name: mychart2
-  version: "0.4.0"
-  repository: "file://charts/mychart2"
-  alias: childchart2
-  tags: 
-    - backend
+  - name: mychart4
+    version: "0.1.0"
+    repository: "file://charts/mychart4"
+    alias: childchart4
+    tags:
+      - frontend
+  - name: mychart2
+    version: "0.4.0"
+    repository: "file://charts/mychart2"
+    alias: childchart2
+    tags:
+      - backend
 ```
 
-## Step-03: Pull charts using helm pull command 
-- We are going to pull the charts to `parentchart/charts` directory using `helm pull` command
-- Also ensure that those packages are untarred or unzipped
-```t
-# Change Directory
+> The dependencies are referenced via local file paths to allow editing subcharts directly. The use of tags allows grouping subcharts logically.
+
+---
+
+## Step-03: Pull Charts into Local Directory
+
+```bash
+# Navigate to the parentchart/charts directory
 cd parentchart/charts
 
-# Helm Pull MyChart4
+# Pull and untar mychart4 from remote repository
 helm pull https://stacksimplify.github.io/helm-charts/mychart4-0.1.0.tgz --untar
 
-# Helm Pull MyChart2
+# Pull and untar mychart2 from remote repository
 helm pull https://stacksimplify.github.io/helm-charts/mychart2-0.4.0.tgz --untar
 
-# Remove package files .tgz files
+# Clean up compressed files
 rm -rf *.tgz
 ```
 
-## Step-04: To Build or Package Sub Charts
-```t
-# Change to Chart Directory
-cd parentchart
+> This gives editable access to subchart sources under `parentchart/charts/`.
 
-# Helm Dependency list
+---
+
+## Step-04: Build Dependencies
+
+```bash
+# From the parentchart directory
+cd ..
+
+# List dependencies
 helm dependency list
 
-## Sample Outout
-Kalyans-MacBook-Pro:parentchart kalyan$ helm dependency list
-NAME    	VERSION	REPOSITORY             	STATUS  
-mychart4	0.1.0  	file://charts/mychart4 	unpacked
-mychart2	0.4.0  	file://charts/mychart2	unpacked
+# Sample output:
+# NAME    	VERSION	REPOSITORY             	STATUS
+# mychart4	0.1.0  	file://charts/mychart4 	unpacked
+# mychart2	0.4.0  	file://charts/mychart2	unpacked
 
-# Helm Dependency Update / Build
+# Run dependency update to generate Chart.lock and verify
 helm dependency update
 
-# Review charts folder
+# Validate charts directory
 ls charts/
-Observation: you should find *.tgz files for both charts
 
-> # helm dep list should show status as OK
-Kalyans-MacBook-Pro:parentchart kalyan$ helm dep list
-NAME    	VERSION	REPOSITORY            	STATUS
-mychart4	0.1.0  	file://charts/mychart4	ok    
-mychart2	0.4.0  	file://charts/mychart2	ok  
-
-
-# Delete subchart tgz files
+# Cleanup the generated .tgz files (optional)
 rm charts/*.tgz
 ```
 
-## Step-05: Define Global value in Parent Chart values.yaml
-- **File:** parentchart/values.yaml
+---
+
+## Step-05: Define Global Values in Parent Chart
+
+**File: `parentchart/values.yaml`**
+
 ```yaml
 # Define Global Values
 global:
   replicaCount: 4
 ```
 
-## Step-06: Update Parent Chart and Sub Chart deployment.yaml
-- **File:** parentchart/templates/deployment.yaml
-- **File:** charts/mychart4/templates/deployment.yaml
-- **File:** charts/mychart2/templates/deployment.yaml
+> This value will be available in subcharts under `.Values.global`.
+
+---
+
+## Step-06: Update Deployment Templates to Use Global Value
+
+### 1. **Parent Chart Deployment**
+
+**File: `parentchart/templates/deployment.yaml`**
+
 ```yaml
 replicas: {{ .Values.global.replicaCount }}
 ```
 
-## Step-07: Test Global Values
-```t
-# Change to Chart Directory
+### 2. **Subchart mychart4 Deployment**
+
+**File: `charts/mychart4/templates/deployment.yaml`**
+
+```yaml
+replicas: {{ .Values.global.replicaCount }}
+```
+
+### 3. **Subchart mychart2 Deployment**
+
+**File: `charts/mychart2/templates/deployment.yaml`**
+
+```yaml
+replicas: {{ .Values.global.replicaCount }}
+```
+
+> Global values are automatically merged into `.Values.global` in subcharts and are accessible without needing alias-specific names.
+
+---
+
+## Step-07: Deploy and Verify
+
+```bash
+# Ensure you're in parentchart directory
 cd parentchart
 
-# Helm Install
+# Install the chart
 helm install myapp1 . --atomic
 
-# Verify Pods for all 3 charts
+# Validate that all charts used the global value
 kubectl get pods
-Observation: 
-All 3 charts should spin 4 pods per each based on ".Values.global.replicaCount=4"
+```
 
-# helm uninstall
+### Expected Output:
+
+* 1 Deployment (possibly) for parentchart
+* 1 Deployment each for `childchart4` and `childchart2`
+* Each Deployment should have 4 pods (replica count = 4)
+
+---
+
+## Step-08: Clean Up
+
+```bash
+# Uninstall the release
 helm uninstall myapp1
 ```
+
+---
+
+## Additional Notes:
+
+* `global` is a **reserved key** in Helm. It’s automatically merged and passed to all templates, including subcharts.
+* Use it for:
+
+    * Common values (e.g., image versions, replicaCount, app labels)
+    * Managing environment-level configurations in complex Helm stacks
+* If both the subchart and global define the same value, Helm does **not override** the subchart-specific value unless it’s not set in that chart. Global values are only a fallback.

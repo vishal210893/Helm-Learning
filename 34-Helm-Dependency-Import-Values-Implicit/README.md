@@ -1,11 +1,17 @@
 # Helm Dependency - Import Values Implicit
 
 ## Step-01: Introduction
-- Implement Import Values Implicit usecase
 
-## Step-02: Review / Update parentchart Chart.yaml
-- **File Location:** parentchart/Chart.yaml
-- Define `import-values`
+Helm allows **implicit import** of values from subcharts into the parent chart using the `import-values` key. Unlike the explicit approach (which uses exported values), the implicit method directly maps specific keys from a subchart’s `values.yaml` into designated paths in the parent chart.
+
+This is especially useful when you want to promote select parts of a subchart’s configuration into the parent without requiring an `exports` block.
+
+---
+
+## Step-02: Define Implicit Imports in Chart.yaml
+
+**File:** `parentchart/Chart.yaml`
+
 ```yaml
 apiVersion: v2
 name: parentchart
@@ -27,70 +33,126 @@ dependencies:
   alias: childchart2
   tags: 
     - backend
-  import-values: # Implicit Values Usecase
-    - child: service 
-      parent: mychart2service   
-    - child: image 
-      parent: mychart2image      
+  import-values:  # Implicit Values Use Case
+    - child: service
+      parent: mychart2service
+    - child: image
+      parent: mychart2image
 ```
 
-## Step-03: Review / Update parentchart configmap.yaml
-- **File Location:** parentchart/templates/configmap.yaml
-- Use imported values in `configmap.yaml`
+* `child`: refers to the path inside `mychart2/values.yaml`
+* `parent`: specifies the key under which this value will be available in the parent chart
+
+---
+
+## Step-03: Use Imported Values in a Template
+
+**File:** `parentchart/templates/configmap.yaml`
+
 ```yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name:  {{ include "parentchart.fullname" . }}-import-implicit
+  name: {{ include "parentchart.fullname" . }}-import-implicit
 data:
   serviceType: {{ .Values.mychart2service.type }}
-  servicePort: {{ .Values.mychart2service.port | quote}}
+  servicePort: {{ .Values.mychart2service.port | quote }}
   servicenodePort: {{ .Values.mychart2service.nodePort | quote }}
   imageRepository: {{ .Values.mychart2image.repository }}
 ```
 
+* This configmap demonstrates how the implicitly imported values from the subchart can be consumed in the parent chart.
 
-## Step-04: Import Values Implicit: Deploy and Verify 
-```t
-# Change to Chart Directory
+---
+
+## Step-04: Install and Verify
+
+```bash
+# Navigate to the chart directory
 cd parentchart
 
-# Helm Install
+# Install the Helm chart
 helm install myapp1 . --atomic
 
-# Helm List
+# Check Helm release
 helm list
-
-# Helm Status
 helm status myapp1 --show-resources
 
-# List k8s Deployments
+# Kubernetes resources
 kubectl get deploy
-
-# List k8s pods
 kubectl get pods
-
-# List k8s ConfigMaps
 kubectl get cm
 kubectl get cm myapp1-parentchart-import-implicit -o yaml
-Observation:
-We should see the data exported from parentchart/charts/mychart2/values.yaml imported successfully to configmap in parentchart. 
-
-# Helm Uninstall
-helm uninstall myapp1 
 ```
 
-## Step-06: Test when mychart2 is disabled 
-```t
-# Change to Chart Directory
-cd parentchart
+### 🔍 Expected Output:
 
-# Helm Install (When mychart2 is disabled)
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: myapp1-parentchart-import-implicit
+data:
+  serviceType: NodePort
+  servicePort: "80"
+  servicenodePort: "31232"
+  imageRepository: ghcr.io/stacksimplify/kubenginx
+```
+
+This confirms that the values from `mychart2/values.yaml` were successfully imported and accessed through `mychart2service` and `mychart2image` in the parent chart.
+
+---
+
+## Step-05: Disable Subchart and Test
+
+```bash
+# Install the chart with backend subchart disabled
 helm install myapp1 . --atomic --set tags.backend=false
-Observation:
-Should fail with error 
+```
 
-## Error
-Kalyans-Mac-mini:parentchart kalyanreddy$ helm install myapp1 . --atomic --set tags.backend=false
+### 🔥 Expected Error:
+
+```shell
 Error: INSTALLATION FAILED: template: parentchart/templates/configmap.yaml:6:25: executing "parentchart/templates/configmap.yaml" at <.Values.mychart2service.type>: nil pointer evaluating interface {}.type
 ```
+
+### 🧠 Why the error?
+
+* The subchart `mychart2` is not rendered, so its values (which were meant to be imported) do not exist.
+* Because Helm still tries to render the parent template using those now-missing values, it fails.
+
+---
+
+## Resolution Tips
+
+* You can guard template rendering with an `if` block to avoid runtime errors when subcharts are conditionally disabled:
+
+```yaml
+{{- if .Values.mychart2service }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "parentchart.fullname" . }}-import-implicit
+data:
+  serviceType: {{ .Values.mychart2service.type }}
+  servicePort: {{ .Values.mychart2service.port | quote }}
+  servicenodePort: {{ .Values.mychart2service.nodePort | quote }}
+  imageRepository: {{ .Values.mychart2image.repository }}
+{{- end }}
+```
+
+---
+
+## Step-06: Cleanup
+
+```bash
+helm uninstall myapp1
+```
+
+---
+
+## Summary
+
+* **Import Values (Implicit)** allows you to map values from a subchart to specific paths in the parent without needing an `exports` block.
+* It simplifies configuration but requires careful handling when the subchart is optional.
+* Always guard templates using imported values to avoid rendering errors when subcharts are disabled.

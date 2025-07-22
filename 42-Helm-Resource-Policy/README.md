@@ -1,56 +1,106 @@
 # Helm Resource Policy Demo
 
 ## Step-01: Introduction
-- Sometimes there are resources that should not be uninstalled when Helm runs a helm uninstall 
-- Chart developers can add an annotation to a resource to prevent it from being uninstalled.
-- The annotation "helm.sh/resource-policy": keep instructs Helm to skip deleting this resource when a helm operation (such as helm uninstall, helm upgrade or helm rollback) would result in its deletion. 
-- However, this resource becomes orphaned. 
-- Helm will no longer manage it in any way. 
-- This can lead to problems if using helm install --replace on a release that has already been uninstalled, but has kept resources.
 
-## Step-02: Review Helm Resource Policy Annotation
+Helm provides a way to prevent certain Kubernetes resources from being deleted during operations such as `helm uninstall`, `helm upgrade`, or `helm rollback`. This is achieved using the annotation:
+
+```yaml
+"helm.sh/resource-policy": keep
+```
+
+### Key Points:
+
+* Adding this annotation to a resource (like a Deployment) tells Helm to **retain** the resource even if the chart is deleted.
+* Helm will **no longer manage** the resource after it’s marked to keep — it becomes an **orphan**.
+* This can **cause conflicts** with future `helm install --replace` operations, especially if the retained resource still exists with the same name.
+
+---
+
+## Step-02: Helm Resource Policy Annotation
+
+To apply the resource retention behavior, use the following annotation in the metadata block of a Helm-managed resource:
+
 ```yaml
 metadata:
   annotations:
     "helm.sh/resource-policy": keep
 ```
-## Step-03: Create a Chart and Add Resource Policy Annotation to deployment.yaml
-- **File Location:** respolicytest/templates/deployment.yaml
-```t
-# Helm Create
-helm create respolicytest
 
-# Update deployment.yaml with resource-policy
+This is typically added in the `deployment.yaml` or other template files.
+
+---
+
+## Step-03: Create a Helm Chart and Apply Resource Policy
+
+```t
+# Create a new Helm chart
+helm create respolicytest
+```
+
+Update the `respolicytest/templates/deployment.yaml` file:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  # To test Helm Resource Policy
+  name: {{ include "respolicytest.fullname" . }}
+  labels:
+    {{- include "respolicytest.labels" . | nindent 4 }}
   annotations:
     "helm.sh/resource-policy": keep
+spec:
+  ...
 ```
 
-## Step-03: Helm Install, Uninstall and Verify
+**Note:** The rest of the deployment spec remains unchanged.
+
+---
+
+## Step-04: Install, Uninstall, and Verify Behavior
+
 ```t
-# Change to Chart Directory
+# Navigate to the chart directory
 cd respolicytest
 
-# Install Helm Release 
+# Install the chart
 helm install myapp1 .
 
-# List Deployment, pods and Services
+# Verify deployed resources
 kubectl get deploy
 kubectl get pods
 kubectl get svc
+```
 
-# Uninstall Helm Release
+### Observation:
+
+* Deployment and its associated pods and services should be created as usual.
+
+```t
+# Uninstall the Helm release
 helm uninstall myapp1
 
-# List Deployment, pods and Services
+# Check the state of resources
 kubectl get deploy
 kubectl get pods
 kubectl get svc
-Observation:
-1. We should see deployment should not be uninstalled
-2. Its pods also should be in running state
+```
 
-# Cleanup
+### Post-Uninstall Observation:
+
+* The **Deployment** should still exist (was not removed).
+* The **Pods** related to that Deployment will remain in a running state.
+* Helm will not track this resource anymore — it’s now orphaned.
+
+---
+
+## Step-05: Clean Up Orphaned Resources
+
+To manually clean up the retained resources:
+
+```t
 kubectl delete deploy myapp1-respolicytest
 ```
+
+This step is necessary to ensure no lingering orphaned resources interfere with future Helm installations.
+
+---

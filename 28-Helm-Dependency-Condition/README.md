@@ -1,106 +1,114 @@
 # Helm Dependency - Condition
 
 ## Step-01: Introduction
-- Implement `Condition` for enabling or disabling Sub Charts or Child Charts
-- Override subchart(child chart) values from parent chart
 
+* `condition` is used to enable or disable the installation of subcharts (child charts) from the parent chart.
+* You can control whether a subchart should be rendered and installed by toggling a boolean flag in the parent chart’s `values.yaml`.
+* This is particularly useful for optional dependencies or environments where certain components may be excluded.
 
-## Step-02: Chart.yaml
-- Understand the importance of `condition` when defining dependencies
-- By default, if we the condition is defined or not `condition: mychart4.enabled`, chart is enaled when defined
-- To disable it we need to explicitly make it `false` in `values.yaml`
+---
+
+## Step-02: Configure `Chart.yaml` with `condition`
+
 ```yaml
+# parentchart/Chart.yaml
 dependencies:
-- name: mychart4
-  version: "0.1.0"
-  repository: "https://stacksimplify.github.io/helm-charts/"
-  alias: childchart4
-  condition: mychart4.enabled
-- name: mychart2
-  version: "0.4.0"
-  repository: "https://stacksimplify.github.io/helm-charts/"
-  alias: childchart2
-  condition: mychart2.enabled
+  - name: mychart4
+    version: "0.1.0"
+    repository: "https://stacksimplify.github.io/helm-charts/"
+    alias: childchart4
+    condition: mychart4.enabled
+  - name: mychart2
+    version: "0.4.0"
+    repository: "https://stacksimplify.github.io/helm-charts/"
+    alias: childchart2
+    condition: mychart2.enabled
 ```
 
-## Step-03: Deploy and Test - By Default enabled is true
-```t
-# Helm Dependency Update
-helm dependency update parentchart/
-or
-helm dep update parentchart/
+### Notes:
 
-# Helm Install
+* `condition` takes a path from `.Values`.
+* Even if the condition is declared, Helm enables the subchart by default unless explicitly disabled.
+* Aliases (like `childchart4`) are the chart instances used in rendering, but the `condition` is still keyed off the **original name** (`mychart4`).
+
+---
+
+## Step-03: Deploy and Test – Default Behavior (Both Enabled)
+
+```bash
+# Download the dependencies
+helm dependency update parentchart/
+
+# Install parent chart
 helm install myapp1 parentchart/ --atomic
 
-# Helm List
+# Verify installation
 helm list
-
-# Helm Status
 helm status myapp1 --show-resources
-
-# List Deployments
 kubectl get deploy
-
-# List Pods
 kubectl get pods
-
-# List Services
 kubectl get svc
-
-# Access Application
-parentchart: http://localhost:<port-from-get-svc-output>
-mychart4: http://localhost:<port-from-get-svc-output>
-mychart2: http://localhost:31232
-
-# Helm Uninstall
-helm uninstall myapp1
 ```
 
-## Step-04: Update values.yaml
+### Access Expected Services:
+
+* Parent chart service: `http://localhost:<port>`
+* `mychart4` (via `childchart4` alias): `http://localhost:<port>`
+* `mychart2` (via `childchart2` alias): `http://localhost:31232`
+
+---
+
+## Step-04: Disable Child Charts in `values.yaml`
+
 ```yaml
-# Values for Child Charts with Chart Name
+# parentchart/values.yaml
 mychart4:
   enabled: false
+
 mychart2:
-  enabled: false  
+  enabled: false
 ```
 
+---
 
-## Step-05: Deploy and Test - when childcharts are disabled
-```t
-# Helm Dependency Update
+## Step-05: Deploy and Test – When Subcharts Are Disabled
+
+```bash
+# Update dependencies again
 helm dependency update parentchart/
-or
-helm dep update parentchart/
 
-# Helm Install
+# Install chart
 helm install myapp1 parentchart/ --atomic
 
-# Helm List
+# Verify results
 helm list
-
-# Helm Status
 helm status myapp1 --show-resources
-
-# List Deployments
 kubectl get deploy
-Observation:
-1. Child Charts will not be deployed.
-2. No k8s resources for child charts will be created
-
-# List Pods
 kubectl get pods
-
-# List Services
 kubectl get svc
-
-# Access Application
-parentchart: http://localhost:<port-from-get-svc-output>
 ```
 
-## Step-06: Uninstall Helm Release
-```t
-# Helm Uninstall
+### Observation:
+
+* Only parent chart resources should be created.
+* `childchart4` and `childchart2` will be skipped entirely from the rendered manifests.
+
+---
+
+## Step-06: Cleanup
+
+```bash
 helm uninstall myapp1
 ```
+
+---
+
+## Extra Note:
+
+To override the condition during install time without editing `values.yaml`, use:
+
+```bash
+helm install myapp1 parentchart/ --set mychart4.enabled=false --set mychart2.enabled=false
+```
+
+This makes the chart more flexible in CI/CD pipelines and staging/production workflows.

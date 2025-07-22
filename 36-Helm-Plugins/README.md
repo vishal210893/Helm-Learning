@@ -1,113 +1,163 @@
 # Helm Plugins
 
-## Step-01: Introduction
-- Install Helm Plugins
-- [Helm Starter Plugin](https://github.com/salesforce/helm-starter.git)
-- [Helm Dashboard Plugin](https://github.com/komodorio/helm-dashboard.git)
+## Step 01: Introduction
 
-## Step-02: Install Helm Plugin
-- [Helm Starter Plugin](https://github.com/salesforce/helm-starter)
-- [Review Helm Starter Plugin plugin.yaml](https://github.com/salesforce/helm-starter/blob/master/plugin.yaml)
-```t
-# List Helm Plugins
+Helm supports a powerful **plugin system** that extends its core functionality. Plugins can help with chart creation, visualization, dependency management, CI/CD pipelines, and more.
+
+This guide focuses on:
+
+* Installing and using **Helm Starter Plugin** (by Salesforce)
+* Installing and using **Helm Dashboard Plugin** (by Komodor)
+
+---
+
+## Step 02: Install Helm Plugin
+
+We begin by installing the **Helm Starter Plugin**, which simplifies working with Helm starter charts.
+
+🔗 [Helm Starter Plugin GitHub](https://github.com/salesforce/helm-starter)
+
+🔍 [plugin.yaml (Helm Starter)](https://github.com/salesforce/helm-starter/blob/master/plugin.yaml)
+
+```bash
+# List currently installed Helm plugins
 helm plugin list
 
-# Install Helm Plugins
+# Install Helm Starter Plugin
 helm plugin install https://github.com/salesforce/helm-starter.git
 
-# List Helm Plugins
+# Confirm plugin installation
 helm plugin list
 
-# Helm env
-helm env 
-Observation:
-1. Find the value for HELM_PLUGINS
-HELM_PLUGINS="/Users/kalyan/Library/helm/plugins"
+# Get HELM_PLUGINS environment variable
+helm env
 
-# Verify in Helm plugins directory
+# Observation:
+# Look for the HELM_PLUGINS path, example:
+# HELM_PLUGINS="/Users/kalyan/Library/helm/plugins"
+
+# Go to Helm plugins directory
 cd /Users/kalyan/Library/helm/plugins
 ls
 ```
 
-## Step-03: Play with Helm Starter Plugin
-```t
-# List Helm Starters
-helm plugin list
-helm <PLUGIN-NAME> <PLUGIN-SUB-COMMAND-AS-PER-PLUGIN>
-helm starter list
+---
 
-# Fetch Helm Starter
+## Step 03: Play with Helm Starter Plugin
+
+```bash
+# Check plugin and its available subcommands
+helm plugin list
+helm <plugin-name> <sub-command>
+helm starter list   # Lists available starter charts
+
+# Fetch a sample starter chart from GitHub
 helm starter fetch https://github.com/salesforce/helm-starter-istio.git
 
-# List Helm Starters
+# Re-list starters to verify fetch
 helm starter list
 ```
 
-## Step-04: Play with Helm Plugin Commands
-```t
-# Update Helm Plugin
-helm plugin list
-helm plugin update PLUGIN-NAME
+This allows you to manage, organize, and reuse starter charts across multiple charts in your organization.
+
+---
+
+## Step 04: Plugin Management Commands
+
+Helm plugins can be updated or uninstalled as needed.
+
+```bash
+# Update a specific Helm plugin
+helm plugin update <PLUGIN-NAME>
 helm plugin update starter
 
-# Uninstall Helm Plugin
-helm plugin list
-helm plugin uninstall PLUGIN-NAME
+# Uninstall a Helm plugin
+helm plugin uninstall <PLUGIN-NAME>
 helm plugin uninstall starter
+
+# List plugins after uninstall
 helm plugin list
 ```
 
-## Step-05: Install Couple of Releases
-```t
-# Helm Rep Add
-helm repo list
+---
+
+## Step 05: Install Helm Releases (Sample Charts)
+
+```bash
+# Add custom Helm repo
 helm repo add stacksimplify https://stacksimplify.github.io/helm-charts/
 helm repo list
 
-# Helm Install dev101
+# Install a release named 'dev101'
 helm install dev101 stacksimplify/mychart1 --atomic
+
+# Upgrade the release with different replicaCount values
 helm upgrade dev101 stacksimplify/mychart1 --atomic --set replicaCount=2
 helm upgrade dev101 stacksimplify/mychart1 --atomic --set replicaCount=3
 
-# Helm Install dev102
+# Install another release
 helm install dev102 stacksimplify/mychart2 --atomic
 
-# List Helm Releases
+# List current Helm releases
 helm list
 ```
 
-## Step-06: (Optional) Lets install Helm Dashboard Plugin
-- [Helm Dashboard Plugin Git Repo](https://github.com/komodorio/helm-dashboard)
-- [Helm Dashboard Plugin from Artifacthub](https://artifacthub.io/packages/helm-plugin/helm-dashboard/dashboard)
-- [Review Helm Dashboard Plugin plugin.yaml](https://github.com/komodorio/helm-dashboard/blob/main/plugin.yaml)
+---
 
-```t
+## Step 06: (Optional) Install Helm Dashboard Plugin
+
+🔗 [Helm Dashboard GitHub](https://github.com/komodorio/helm-dashboard)
+
+🔗 [ArtifactHub Page](https://artifacthub.io/packages/helm-plugin/helm-dashboard/dashboard)
+
+📄 [plugin.yaml (Helm Dashboard)](https://github.com/komodorio/helm-dashboard/blob/main/plugin.yaml)
+
+```bash
 # List Helm Plugins
 helm plugin list
 
-# Install Helm Plugin
+# Install Helm Dashboard Plugin
 helm plugin install https://github.com/komodorio/helm-dashboard.git
 
-# Start Helm Plugin: dashboard
+# Start the dashboard server locally
 helm dashboard
-
-# Review Dashboard Concepts
-1. Clusters
-2. Installed Charts
-    - Release: dev101 
-        - Resources
-        - Manifests
-        - Values
-        - Notes
-    - Revision: 1, 2, 3 
-    - Revision Differences
-3. Repository
-4. Logout 
 ```
 
-## Step-07: Uninstall Releases
-```t
-# Helm Uninstall
+Once launched, the dashboard UI allows you to:
+
+* Explore clusters and Helm releases
+* View and diff revisions
+* Visualize resources, manifests, values
+* Manage charts visually without CLI commands
+
+📌 Common Dashboard Sections:
+
+* **Clusters**
+* **Installed Charts**
+
+    * Release: `dev101`, `dev102`
+    * Revisions: Navigate revisions and view changes
+    * Values, Notes, Manifests, Resources
+* **Repositories**
+* **Logout**
+
+---
+
+## Step 07: Uninstall Helm Releases
+
+```bash
+# Uninstall the releases created earlier
 helm uninstall dev101
 helm uninstall dev102
 ```
+
+---
+
+## Summary Table
+
+| Plugin         | Purpose                                   | Command Example     |
+| -------------- | ----------------------------------------- | ------------------- |
+| helm-starter   | Manage and use Helm starter templates     | `helm starter list` |
+| helm-dashboard | Visualize and manage Helm resources in UI | `helm dashboard`    |
+
+With Helm plugins, you can dramatically improve your development workflow, automation, and visibility around Helm charts.

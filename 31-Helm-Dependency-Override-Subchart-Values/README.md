@@ -1,10 +1,14 @@
 # Helm Dependency - Override Subchart Values
 
 ## Step-01: Introduction
-- Override subchart(child chart) values from parent chart
 
+* In Helm, parent charts can override values defined in subcharts using the same key structure as the subchart’s `values.yaml`.
+* This is especially useful when you want to control replica counts, image tags, resource requests, or any other configuration centrally without modifying the original subchart.
+
+---
 
 ## Step-02: Review Chart.yaml
+
 ```yaml
 apiVersion: v2
 name: parentchart
@@ -13,77 +17,112 @@ type: application
 version: 0.1.0
 appVersion: "1.16.0"
 dependencies:
-- name: mychart4
-  version: "0.1.0"
-  repository: "https://stacksimplify.github.io/helm-charts/"
-  condition: mychart4.enabled
-- name: mychart2
-  version: "0.4.0"
-  repository: "https://stacksimplify.github.io/helm-charts/"
-  condition: mychart2.enabled
+  - name: mychart4
+    version: "0.1.0"
+    repository: "https://stacksimplify.github.io/helm-charts/"
+    condition: mychart4.enabled
+  - name: mychart2
+    version: "0.4.0"
+    repository: "https://stacksimplify.github.io/helm-charts/"
+    condition: mychart2.enabled
 ```
 
-## Step-03: Review mychart4, mychart2 subchart replicaCount value
-```t
-# Change Directory
+> Both dependencies are gated by `enabled` conditions, allowing selective control.
+
+---
+
+## Step-03: Inspect Default Values in Subcharts
+
+```bash
+# Move to working directory
 cd 31-Helm-Dependency-Override-Subchart-Values
 
-# Review mychart4 Values from Helm package 
+# View default values for mychart4
 helm show values parentchart/charts/mychart4-0.1.0.tgz
 
-# Review mychart2 Values from Helm package  
-helm show values parentchart/charts/mychart2-0.4.0.tgz 
+# View default values for mychart2
+helm show values parentchart/charts/mychart2-0.4.0.tgz
 ```
 
-## Step-04: Update values.yaml
-- Override `replicaCount` value in subcharts from parent chart `values.yaml`
+> Check for keys like `replicaCount`, `image`, `service`, etc., which are commonly overridden.
+
+---
+
+## Step-04: Override Subchart Values in Parent Chart’s values.yaml
+
 ```yaml
-# Values for Child Charts with Chart Name
+# parentchart/values.yaml
 mychart4:
   enabled: true
   replicaCount: 3
+
 mychart2:
-  enabled: true  
+  enabled: true
   replicaCount: 3
 ```
 
-## Step-05: Deploy and Test 
-```t
-# Helm Dependency Update
-helm dependency update parentchart/
-or
-helm dep update parentchart/
+> These override values will be passed to the subchart during rendering, replacing the defaults.
 
-# Helm Install
+---
+
+## Step-05: Deploy and Verify
+
+```bash
+# Update dependencies (in case they were modified)
+helm dependency update parentchart/
+
+# Install the parent chart
 helm install myapp1 parentchart/ --atomic
 
-# Helm List
+# Verify resources
 helm list
-
-# Helm Status
 helm status myapp1 --show-resources
 
-# List Deployments
+# Inspect deployments and pods
 kubectl get deploy
-
-# List Pods
 kubectl get pods
-Observation:
-1. We should see 3 pods for each child chart
-2. 1 pod for parentchart
-3. We have successfully overrided the child chart values from parentchart values.yaml
-
-# List Services
-kubectl get svc
-
-# Access Application
-parentchart: http://localhost:<port-from-get-svc-output>
-mychart4: http://localhost:<port-from-get-svc-output>
-mychart2: http://localhost:31232
 ```
 
-## Step-06: Uninstall Helm Release
-```t
-# Helm Uninstall
+### Expected Outcome:
+
+* You should see:
+
+    * **3 pods** for `mychart4`
+    * **3 pods** for `mychart2`
+    * **1 pod** for `parentchart` (if it has a workload)
+* This confirms the `replicaCount` values were successfully overridden.
+
+---
+
+## Step-06: Access Services
+
+```bash
+kubectl get svc
+```
+
+> Use the NodePort or ClusterIP values returned to access applications like:
+
+```
+http://localhost:<port>
+```
+
+---
+
+## Step-07: Clean Up
+
+```bash
 helm uninstall myapp1
 ```
+
+> This will remove all workloads created by the parent and subcharts.
+
+---
+
+## Additional Notes:
+
+* To override deeper values (e.g., nested maps), match the exact hierarchy from the subchart’s `values.yaml`.
+* You can also use `--set` or `--values` flags to override inline or with additional files:
+
+  ```bash
+  helm install myapp1 parentchart/ --atomic --set mychart2.replicaCount=2
+  ```

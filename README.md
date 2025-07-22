@@ -1,19 +1,27 @@
+Certainly! Here's the fully formatted documentation for your **Helm Masterclass: 50 Practical Demos for Kubernetes DevOps** in a consistent style:
+
+---
+
 # Helm Masterclass: 50 Practical Demos for Kubernetes DevOps
 
 ## Course Details
-- **Title:** Helm Masterclass: 50 Practical Demos for Kubernetes DevOps
-- **Subtitle:** Create, Develop, Install, Upgrade, Rollback, Package, and Publish Helm Charts with step-by-step practical demos.
+
+* **Title:** Helm Masterclass: 50 Practical Demos for Kubernetes DevOps
+* **Subtitle:** Create, Develop, Install, Upgrade, Rollback, Package, and Publish Helm Charts with step-by-step practical demos.
+
+---
 
 ## Course Modules
-01. Install Docker Desktop and HelmCLI
-02. Helm Install
-03. Helm Upgrade with set option
-04. Helm Upgrade with Chart Versions
-05. Helm Uninstall Keep History
-06. Helm Install Generated Name
-07. Helm Install Atomic
-08. Helm with Namespaces
-09. Helm Override Values
+
+1. Install Docker Desktop and HelmCLI
+2. Helm Install
+3. Helm Upgrade with set option
+4. Helm Upgrade with Chart Versions
+5. Helm Uninstall Keep History
+6. Helm Install Generated Name
+7. Helm Install Atomic
+8. Helm with Namespaces
+9. Helm Override Values
 10. Helm Chart Structure
 11. Helm Dev BuiltIn Objects
 12. Helm Dev Basics
@@ -52,26 +60,57 @@
 45. Integrate with ArtifactHub
 46. Helm Values Validate with JSON Schema
 
-## What will students learn in your course?
-- You will master all 24 Helm commands, along with their respective subcommands and flags, through multiple practical demonstrations.
-- You will learn how to develop Helm Charts through 13 Helm development demos.
-- You will learn flow control actions such as If-else, With, and Range, in combination with functions like EQ, AND, BOOLEAN, OR, NOT, DEFAULT, and QUOTE.
-- You will learn to create, package, install, upgrade, rollback, and uninstall Helm Charts.
-- You will learn to implement Helm Dependency through 9 demos, which cover Alias, Condition, Tags, Global Values, and Import values.
-- You will learn Helm concepts such as starters, plugins, hooks, tests, resource policy, and Values JSON Schema through practical demos.
-- You will learn to implement Helm Chart signing and verification.
-- You will learn how to create a Helm Repository on GitHub and integrate it with Artifact Hub.
+---
 
-## What are the requirements or prerequisites for taking your course?
-- You must have Kubernetes knowledge and experience to follow with me for hands-on activities.
+## What Will Students Learn in This Course?
 
-## Who is this course for?
-- This course is designed for students who have completed my AWS EKS, Azure AKS, or Google GKE Kubernetes courses.
-- Infrastructure Architects or Sysadmins or Developers or DevOps Engineers who are planning to master Helm.
+* Master all 24 Helm commands and their subcommands/flags through practical hands-on demos.
+* Develop Helm charts using 13 focused development exercises.
+* Understand and apply flow control structures: `if-else`, `with`, and `range`, along with operators and functions like `eq`, `and`, `or`, `not`, `default`, and `quote`.
+* Create, install, upgrade, rollback, and uninstall Helm charts.
+* Implement Helm dependencies using 9 demos covering aliases, conditions, tags, global values, and value imports.
+* Explore Helm concepts like starters, plugins, hooks, tests, resource policies, and values schema validations.
+* Sign and verify Helm charts securely.
+* Host your own Helm repository on GitHub and integrate it with Artifact Hub.
 
-## Github Repositories used for this course
-- [helm-masterclass](https://github.com/stacksimplify/helm-masterclass)
-- [helm-charts](https://github.com/stacksimplify/helm-charts)
-- [helm-charts-repo](https://github.com/stacksimplify/helm-charts-repo)
-- [Course Presentation](https://github.com/stacksimplify/helm-masterclass/course-presentation/)
-- **Important Note:** Please go to these repositories and FORK these repositories and make use of them during the course.
+---
+
+## Prerequisites
+
+* **Kubernetes proficiency is required.**
+* You must be comfortable working with Kubernetes clusters and resources to follow along with the hands-on labs and examples.
+
+---
+
+## Who Should Take This Course?
+
+* Students who have completed:
+
+    * AWS EKS
+    * Azure AKS
+    * Google GKE Kubernetes courses
+* Infrastructure Architects
+* System Administrators
+* Developers
+* DevOps Engineers
+
+Anyone planning to **master Helm** in real-world production environments.
+
+---
+
+## GitHub Repositories Used in This Course
+
+* [helm-masterclass](https://github.com/stacksimplify/helm-masterclass)
+* [helm-charts](https://github.com/stacksimplify/helm-charts)
+* [helm-charts-repo](https://github.com/stacksimplify/helm-charts-repo)
+* [Course Presentation](https://github.com/stacksimplify/helm-masterclass/course-presentation/)
+
+**Important Note:**
+Please **FORK** the above repositories into your own GitHub account and use them throughout the course for practical exercises and reference.
+
+---
+
+```
+helm install myapp1 stacksimplify/mychart1
+kubectl port-forward service/myapp1-nodeport-service 31231:80
+```

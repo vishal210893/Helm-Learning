@@ -1,24 +1,34 @@
 # Helm Development - Named Templates
 
 ## Step-01: Introduction
-- Create Named Template
-- Call the named template using template action
-- Pass Root Object dot (.) to template action provided if we are using Helm builtin objects in our named template
-- For `template call` use `pipelines` and see if it works
-- Replace `template call` with special purpose function `include` in combination with `pipelines` and test it
 
+* Named templates are reusable blocks of template logic that can be defined once and reused across multiple Helm template files.
+* They’re declared using `{{ define "template.name" }}` and called using either `{{ template "template.name" . }}` or `{{ include "template.name" . }}`.
+* The difference:
+
+    * `template` is an action and cannot be piped into other functions
+    * `include` is a function and returns a string, so it can be piped and nested
+
+---
 
 ## Step-02: Create a Named Template
-- **File Location:** deployment.yaml
-- Define the below named template in `deployment.yaml`
-```t
+
+* File: `deployment.yaml`
+* Define a named template for common labels
+
+```yaml
 {{/* Common Labels */}}
-{{- define "helmbasics.labels"}}
+{{- define "helmbasics.labels" }}
     app: nginx
 {{- end }}
 ```
 
-## Step-03: Call the named template using template action
+---
+
+## Step-03: Call the Named Template Without Scope
+
+* File: `deployment.yaml`
+
 ```yaml
 apiVersion: apps/v1
 kind: Deployment
@@ -28,149 +38,133 @@ metadata:
   {{- template "helmbasics.labels" }}
 ```
 
-## Step-04: Test the output with template action
-```t
-# Change to Chart Directory 
+> Since scope `.` is not passed, the template has no access to root objects like `.Chart.Name`.
+
+---
+
+## Step-04: Test Without Scope
+
+```bash
 cd helmbasics
-
-# Helm Template Command
-helm template myap101 .
-
-# Helm Install with dry-run command
+helm template myapp101 .
 helm install myapp101 . --dry-run
-
-# Helm Release
-helm install myapp101 . --atomic
-kubectl get deploy
-kubectl describe deploy <DEPLOYMENT-NAME>
-helm uninstall myapp101
 ```
 
-## Step-05: Add one Builtin Object Chart.Name to labels
-```t
+**Expected:**
+
+* Only static values will render
+* Any dynamic reference (e.g., `.Chart.Name`) will be empty or throw an error if used in the template
+
+---
+
+## Step-05: Add Builtin Object `.Chart.Name` to Template
+
+```yaml
 {{/* Common Labels */}}
-{{- define "helmbasics.labels"}}
+{{- define "helmbasics.labels" }}
     app: nginx
     chartname: {{ .Chart.Name }}
 {{- end }}
 ```
 
-## Step-06: Test the output with template action
-```t
-# Change to Chart Directory 
-cd helmbasics
+> This now requires `.Chart.Name`, so the template must receive the scope via `.`
 
-# Helm Template Command
-helm template myap101 .
+---
 
-# Helm Install with dry-run command
-helm install myapp101 . --dry-run
-Observation:
-1. Chart name filed should be empty
-2. Chart Name was not in the scope for our defined template.
-3. When a named template (created with define) is rendered, it will receive the scope passed in by the template call. 
-4. No scope was passed in, so within the template we cannot access anything in "."
-5. This is easy to fix. We simply pass a scope to the template
-```
+## Step-06: Fix Scope Passing by Adding Dot
 
-## Step-07: Pass scope to the template call
-- Add dot "." (Root Object or period) at the end of template call to pass scope to template call
 ```yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}-{{ .Chart.Name }}-deployment # Action Element
+  name: {{ .Release.Name }}-{{ .Chart.Name }}-deployment 
   labels:
   {{- template "helmbasics.labels" . }}
 ```
 
-## Step-08: Test the output with template action when scope passed to template call
-```t
-# Change to Chart Directory 
-cd helmbasics
+> The `.` at the end passes the current scope into the named template, making built-in objects accessible inside it.
 
-# Helm Template Command
-helm template myap101 .
+---
 
-# Helm Install with dry-run command
+## Step-07: Test With Scope
+
+```bash
+helm template myapp101 .
 helm install myapp101 . --dry-run
-Observation:
-Chart Name should be displayed
 ```
 
-## Step-09: Pipe an Upper function to template 
-```t
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: {{ .Release.Name }}-{{ .Chart.Name }}-deployment # Action Element
-  labels:
+**Expected:**
+
+* `chartname` label should correctly render with the actual chart name
+
+---
+
+## Step-08: Test With Function Piping (Fails)
+
+```yaml
+labels:
   {{- template "helmbasics.labels" . | upper }}
 ```
 
-## Step-10: Test the output when template action + pipe + upper function
-```t
-# Change to Chart Directory 
-cd helmbasics
-
-# Helm Template Command
-helm template myap101 .
-
-# Helm Install with dry-run command
-helm install myapp101 . --dry-run
-Observation:
-1. Should fail with error. What is the reason for failure ?
-2. Template is an action, and not a function, there is no way to pass the output of a template call to other functions; 
+```bash
+helm template myapp101 .
 ```
 
-## Step-11: Replace Template action with Special Purpose include function
+**Observation:**
+
+* This fails because `template` is an action, not a function.
+* Actions cannot return values to be piped.
+
+---
+
+## Step-09: Fix Using `include` Function
+
 ```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: {{ .Release.Name }}-{{ .Chart.Name }}-deployment # Action Element
-  labels:
+labels:
   {{- include "helmbasics.labels" . | upper }}
 ```
 
-## Step-10: Test the output include function
-```t
-# Change to Chart Directory 
-cd helmbasics
+**Observation:**
 
-# Helm Template Command
-helm template myap101 .
+* `include` returns a string, so it can be piped into `upper`, `trim`, `indent`, etc.
+* This works and results in all keys/values printed in upper case.
 
-# Helm Install with dry-run command
-helm install myapp101 . --dry-run
-Observation:
-1. Call include "helmbasics.labels" -- should be successful
-2. Should show all labels in upper case
-```
-## Step-11: Underscoe file (_helpers.tpl)
-- Move the named template `helmbasics.labels` to `_helpers.tpl` file
-- But files whose name begins with an underscore (_) are assumed to not have a kubernetes manifest inside. 
-- These files are not rendered to Kubernetes object definitions, but are available everywhere within other chart templates for use.
-- These files are used to store partials and helpers. 
-```t
+---
+
+## Step-10: Move to `_helpers.tpl`
+
+* Move the `define` block to `_helpers.tpl` for better organization
+
+```gotpl
 {{/* Common Labels */}}
-{{- define "helmbasics.labels"}}
+{{- define "helmbasics.labels" }}
     app: nginx
     chartname: {{ .Chart.Name }}
 {{- end }}
 ```
 
-## Step-12: Test the output after moving named template to _helpers.tpl
-```t
-# Change to Chart Directory 
-cd helmbasics
+> Files beginning with `_` are helper-only files. They are not rendered into manifests but can be referenced anywhere in templates.
 
-# Helm Template Command
-helm template myap101 .
+---
 
-# Helm Install with dry-run command
+## Step-11: Final Testing
+
+```bash
+helm template myapp101 .
 helm install myapp101 . --dry-run
-Observation:
-1. call include "helmbasics.labels" -- should be successful
-2. Should show all labels in upper case
 ```
+
+**Expected:**
+
+* No error
+* `labels` render correctly with the `.Chart.Name` and `app: nginx`
+* If `upper` is applied, output should be in uppercase
+
+---
+
+## Notes:
+
+* Always prefer storing reusable snippets in `_helpers.tpl` for maintainability.
+* Use `template` when embedding reusable blocks directly in templates without chaining.
+* Use `include` when you need to manipulate the output, e.g., indenting or converting case.
+* You can use `required` or `default` inside named templates for more robust error handling or fallbacks.

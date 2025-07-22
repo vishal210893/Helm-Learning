@@ -1,16 +1,21 @@
 # Helm Development - Flow Control Range with Dictionary
 
 ## Step-01: Introduction
-- Implement Range with Map or Dictionary from `values.yaml`
-- Implement on how to call `Helm Variable` in Range loop
 
-## Step-02: Range with Key Value pairs or Map or Dictionary 
-- **Source Location:** backupfiles/namespace.yaml
-- **Destication Location:** helmbasics/templates/namespace.yaml
-- **File Name:** namespace.yaml
+* The `range` action can also be used to iterate over dictionaries (maps) in Helm templates.
+* When ranging over maps, Helm provides both the key and value variables (e.g., `range $key, $value := ...`).
+* This technique is useful for dynamically building structured data like `ConfigMaps` with arbitrary key-value pairs.
+
+---
+
+## Step-02: Range with Key-Value Pairs (Map/Dictionary)
+
+* **Goal:** Generate a `ConfigMap` from a dictionary object defined in `values.yaml`
+* **Input Source:** `backupfiles/namespace.yaml`
+* **Output File:** `helmbasics/templates/namespace.yaml`
+
 ```yaml
 # values.yaml
-# Range with Dictionary
 myapps:
   config1: 
     appName: myapp1
@@ -22,53 +27,59 @@ myapps:
     appType: webserver
     appTech: HTML
     appDb: mysql
-  
-# Range with Dictionary
+```
+
+```yaml
+# helmbasics/templates/namespace.yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: {{ .Release.Name }}-{{ .Chart.Name }}-configmap1
-data: 
+data:
 {{- range $key, $value := .Values.myapps.config1 }}
-{{- $key | nindent 2}}: {{ $value }}
-{{- end}}  
+  {{ $key }}: {{ $value }}
+{{- end }}
+```
 
-# Change to Chart Directory
-cd helmbasics  
+### Test Commands
 
-# Helm Template
+```bash
+cd helmbasics
+
+# Validate template rendering
 helm template myapp1 .
 
-# Helm Install with dry-run
-helm install myapp1 . --dry-run 
+# Simulate Helm install
+helm install myapp1 . --dry-run
 
-# Helm Install and Test
+# Real install
 helm install myapp1 . --atomic
+
+# Check Helm and Kubernetes state
 helm list
-
-# Helm Status
 helm status myapp1 --show-resources
-
-# List k8s namespaces
 kubectl get configmap
-kubectl get configmap <NAME-OF-CONFIGMAP> -o yaml
 kubectl get configmap myapp1-helmbasics-configmap1 -o yaml
 
-# Observation:
-We should see configmap with key value pairs
-
-# Uninstall Helm Release
+# Clean up
 helm uninstall myapp1
 ```
 
+**Notes:**
 
-## Step-03: Range - Access Builtin Object from Root inside Range using Helm  Variable
-- **Source Location:** backupfiles/namespace-with-variable.yaml
-- **Destication Location:** helmbasics/templates/namespace-with-variable.yaml
-- **File Name:** namespace-with-variable.yaml
+* When ranging over a dictionary, `.Values.myapps.config1` is treated as a map. Each `key` and `value` is accessible inside the loop.
+* The `nindent` or standard YAML indentation can be applied to align key-value output correctly.
+
+---
+
+## Step-03: Access Root Object Inside Range Using Helm Variable
+
+* **Goal:** Enhance the previous example by appending the chart name (a Helm built-in object) to each value.
+* **Input Source:** `backupfiles/namespace-with-variable.yaml`
+* **Output File:** `helmbasics/templates/namespace-with-variable.yaml`
+
 ```yaml
 # values.yaml
-# Range with Dictionary
 myapps:
   config1: 
     appName: myapp1
@@ -80,40 +91,44 @@ myapps:
     appType: webserver
     appTech: HTML
     appDb: mysql
-  
-# Range: Access Root Object in Range with Helm Variable
-{{- $chartName := .Chart.Name  }}
+```
+
+```yaml
+# helmbasics/templates/namespace-with-variable.yaml
+{{- $chartName := .Chart.Name }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: {{ .Release.Name }}-{{ .Chart.Name }}-configmap2
-data: 
+data:
 {{- range $key, $value := .Values.myapps.config2 }}
-{{- $key | nindent 2}}: {{ $value }}-{{ $chartName }}
-{{- end}}  
+  {{ $key }}: {{ $value }}-{{ $chartName }}
+{{- end }}
+```
 
-# Change to Chart Directory
-cd helmbasics  
+### Test Commands
 
-# Helm Template
+```bash
+cd helmbasics
+
+# Template render check
 helm template myapp1 .
 
-# Helm Install with dry-run
-helm install myapp1 . --dry-run 
+# Dry-run simulation
+helm install myapp1 . --dry-run
 
-# Helm Install and Test
+# Install and inspect
 helm install myapp1 . --atomic
 helm list
-
-# List k8s namespaces
 kubectl get configmap
-kubectl get configmap <NAME-OF-CONFIGMAP> -o yaml
 kubectl get configmap myapp1-helmbasics-configmap2 -o yaml
 
-# Observation:
-We should see configmap with key value pairs
-
-# Uninstall Helm Release
+# Cleanup
 helm uninstall myapp1
 ```
 
+**Important Notes:**
+
+* Defining `$chartName := .Chart.Name` at the top ensures it's available inside the `range` block.
+* Without this, directly referencing `.Chart.Name` inside the range may not resolve as expected due to scope shadowing.
+* You can use `$` to refer to the root scope, but assigning to a variable is cleaner and more readable when reused multiple times.

@@ -1,126 +1,138 @@
 # Helm Hooks Delete Policy
 
 ## Step-01: Introduction
-- Implement Helm Hooks deletion policy
+
+* Implement Helm Hooks deletion policy to automatically clean up hook-created resources based on lifecycle conditions.
 
 ## Step-02: List Kubernetes Pods
-- **Important Note:** We are in continuation to the previous demo
+
+* **Important Note:** This step continues from the previous `hooksdemo1` demo.
+
 ```t
-# List Kuberentes Pods
+# List Kubernetes Pods
 kubectl get pods
-Observation:
-1. We should see hook pods were in completed state but not removed
-2. How do we need to remove them ?
-Option-1: Manually delete them
-Option-2: Use Helm Hook Deletion Policies
 ```
 
-## Step-03: What are Helm Hook Deletion Policies ?
-1. We can define when to delete the hook resources using Hook Deletion Policies
-2. **before-hook-creation:** Delete the previous resource before a new hook is launched (default)
-3. **hook-succeeded:** Delete the resource after the hook is successfully executed
-4. **hook-failed:** Delete the resource if the hook failed during execution
+**Observation:**
+
+1. Previously created hook pods (like `myhook-preinstall`, `myhook-preupgrade`, `myhook-postdelete`) are in `Completed` status and still present.
+2. Options to remove them:
+
+    * **Option 1:** Manually delete the pods.
+    * **Option 2:** Use **Helm Hook Deletion Policies** to automate cleanup.
+
+---
+
+## Step-03: What are Helm Hook Deletion Policies?
+
+Helm provides a way to specify when a hook resource should be deleted using the `helm.sh/hook-delete-policy` annotation:
+
 ```yaml
 annotations:
-  "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded, hook-failed
+  "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded,hook-failed
 ```
-## Step-04: Deploy new Helm Release
+
+Supported policies:
+
+| Policy                 | Description                                                             |
+| ---------------------- | ----------------------------------------------------------------------- |
+| `before-hook-creation` | Deletes the previous hook resource before creating a new one (default). |
+| `hook-succeeded`       | Deletes the resource if the hook runs successfully.                     |
+| `hook-failed`          | Deletes the resource if the hook fails.                                 |
+
+---
+
+## Step-04: Deploy New Helm Release
+
 ```t
-# Change Directory (In Helm Chart Folder)
+# Change to Helm Chart Directory
 cd hooksdemo1
 
-# List Kubernetes Pods
+# Note existing hook pod ages
 kubectl get pods
-Observation: Make a note of pods running age before installing new release
 
 # Install Helm Release
-helm install myapp101 . 
-
-# List Helm Release
-helm list
-
-# List Kubernetes Pods
-kubectl get pods
-Observation:
-1. We should see "myhook-preinstall" pod just got deleted and recreated
-2. How does this happen ?
-3. For Helm Hook deletion policy, even though it is not defined in our hookpod yaml files, "before-hook-creation" is a default value which got triggered. So the old hook pod is deleted and new one created during "helm install" 
-
-"helm.sh/hook-delete-policy": before-hook-creation
-before-hook-creation:Delete the previous resource before a new hook is launched (default) 
+helm install myapp101 .
 ```
 
-## Step-05: Uninstall Helm Release and clean-up 
-- We are going uninstall helm release and clean-up all hook pods before testing the hook delete policy changes we added.
+**Observation:**
+
+1. Existing `myhook-preinstall` pod is deleted and re-created automatically.
+2. This is due to the default `before-hook-creation` policy, even though it's not explicitly defined.
+
+---
+
+## Step-05: Uninstall Helm Release and Clean Up
+
 ```t
 # Uninstall Helm Release
 helm uninstall myapp101
 
-# List Kubernetes Pods
-kubectl get pods
-
-# Delete Hook pods
+# Delete remaining hook pods manually (if present)
 kubectl delete pod myhook-preinstall
 kubectl delete pod myhook-preupgrade
 kubectl delete pod myhook-postdelete
 ```
 
-## Step-06: Update hookpod yaml files with below Hook Deletion Policy
-- Update below 3 files with annotation `helm.sh/hook-delete-policy`
-- preinstall-hookpod.yaml
-- preupgrade-hookpod.yaml
-- postdelete-hookpod.yaml
+---
+
+## Step-06: Update HookPod YAML Files with Hook Deletion Policy
+
+Update the following files with `helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded`:
+
+* `templates/preinstall-hookpod.yaml`
+* `templates/preupgrade-hookpod.yaml`
+* `templates/postdelete-hookpod.yaml`
+
 ```yaml
+annotations:
+  "helm.sh/hook": "pre-install"
   "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
 ```
 
-## Step-07: Install Helm Release and Test Hook Deletion Policy
-```t
-# Change Directory (In Helm Chart Folder)
-cd hooksdemo1
+---
 
+## Step-07: Install Helm Release and Test Hook Deletion Policy
+
+```t
 # Install Helm Release
 helm install myapp101 .
-
-# List Kubernetes Pods
-kubectl get pods
-Observation: 
-1. We should not see "myhook-preinstall" pod
-2. It got created, completed and deleted as we have provided "hook-succeeded" in "helm.sh/hook-delete-policy"
 ```
+
+**Observation:**
+
+* `myhook-preinstall` pod is created, completed, and automatically deleted due to `hook-succeeded` policy.
+
+---
 
 ## Step-08: Upgrade Helm Release and Test Hook Deletion Policy
-```t
-# Change Directory (In Helm Chart Folder)
-cd hooksdemo1
 
+```t
 # Upgrade Helm Release
 helm upgrade myapp101 . --set image.tag=0.2.0
-
-# List Kubernetes Pods
-kubectl get pods
-Observation: 
-1. We should not see "myhook-preupgrade" pod
-2. It got created, completed and deleted as we have provided "hook-succeeded" in "helm.sh/hook-delete-policy"
 ```
+
+**Observation:**
+
+* `myhook-preupgrade` pod is created, completed, and then deleted due to `hook-succeeded` policy.
+
+---
 
 ## Step-09: Uninstall Helm Release and Test Hook Deletion Policy
+
 ```t
-# Change Directory (In Helm Chart Folder)
-cd hooksdemo1
-
 # Uninstall Helm Release
-helm uninstall myapp101 
-
-# List Kubernetes Pods
-kubectl get pods
-Observation: 
-1. We should not see "myhook-postdelete" pod
-2. It got created, completed and deleted as we have provided "hook-succeeded" in "helm.sh/hook-delete-policy"
+helm uninstall myapp101
 ```
 
-## Step-10: Downside of using hook-failed 
-1. **hook-failed:** Delete the resource if the hook failed during execution
-2. The downside of this during Chart Development phase is, when our hook fails and its resource deleted, we will not have an option to troubleshoot.
-3. If we don't use `hook-failed` our resource created will be present and we can describe that resource, review events and troubleshoot. 
-4. This is not a recommendation, just my personal observation. 
+**Observation:**
+
+* `myhook-postdelete` pod is created and cleaned up after successful execution.
+
+---
+
+## Step-10: Downside of Using `hook-failed`
+
+* While `hook-failed` is useful in production for auto-cleanup of failed resources, it can hinder debugging during chart development.
+* Without the resource present, it becomes harder to inspect logs or describe the failure.
+* **Recommendation:** Avoid `hook-failed` during development to retain hook artifacts for troubleshooting.
